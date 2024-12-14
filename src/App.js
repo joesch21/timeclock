@@ -98,7 +98,7 @@ const App = () => {
 
   return (
     <div className="container mt-5">
-      <h1>Employee Clock App</h1>
+      <h1>Sydney ITP Clock App</h1>
       {loading && (
         <div className="spinner-border text-primary" role="status">
           <span className="sr-only">Loading...</span>
