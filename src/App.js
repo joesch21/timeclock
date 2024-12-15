@@ -37,21 +37,35 @@ const App = () => {
   const connectWallet = async () => {
     try {
       const instance = await web3Modal.connect();
-      const provider = new ethers.BrowserProvider(instance); // Web3Modal with ethers.js
+  
+      // Check for WalletConnect Mobile Deep-Linking
+      if (instance.isWalletConnect && instance.connector) {
+        const { connector } = instance;
+        const uri = await connector.uri;
+        const deepLink = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
+  
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          window.location.href = deepLink; // Open MetaMask Mobile directly
+          return;
+        }
+      }
+  
+      const provider = new ethers.BrowserProvider(instance);
       const signer = await provider.getSigner();
-
+  
       const userAccount = await signer.getAddress();
       setAccount(userAccount);
-
+  
       const contractInstance = new ethers.Contract(contractAddress, abi, signer);
       setContract(contractInstance);
-
+  
       alert(`Wallet connected: ${userAccount}`);
     } catch (error) {
       console.error("Error connecting wallet:", error);
       alert("Failed to connect wallet. Please try again.");
     }
   };
+  
 
   const getGeolocation = () => {
     if (navigator.geolocation) {
