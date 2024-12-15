@@ -1,20 +1,24 @@
 const webpack = require("webpack");
 
-module.exports = function override(config) {
+module.exports = function override(config, env) {
   config.resolve.fallback = {
-    stream: require.resolve("stream-browserify"),
+    ...config.resolve.fallback,
     http: require.resolve("stream-http"),
     https: require.resolve("https-browserify"),
     os: require.resolve("os-browserify/browser"),
-    zlib: require.resolve("browserify-zlib"),
+    assert: require.resolve("assert/"),
+    buffer: require.resolve("buffer/"),
+    stream: require.resolve("stream-browserify"),
+    util: require.resolve("util/"),
   };
 
-  config.plugins = (config.plugins || []).concat([
+  config.plugins = [
+    ...config.plugins,
     new webpack.ProvidePlugin({
-      Buffer: ["buffer", "Buffer"],
       process: "process/browser",
+      Buffer: ["buffer", "Buffer"],
     }),
-  ]);
+  ];
 
   return config;
 };
