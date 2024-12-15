@@ -14,20 +14,18 @@ const App = () => {
   const [records, setRecords] = useState([]);
 
   const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
-  const bscScanApiKey = "HVYMP4JE3IHP4RMF5EYZD2RCSDBZHS4CQD"; // BscScan API Key
-  const predefinedLocation = { lat: -33.947346, long: 151.179428 };
-  const maxDistance = 20; // 20 km tolerance
+  const apiKey = "HVYMP4JE3IHP4RMF5EYZD2RCSDBZHS4CQD"; // BscScan API Key
 
-  // Web3Modal setup
+  const predefinedLocation = { lat: -33.947346, long: 151.179428 };
+  const maxDistance = 20;
+
   const web3Modal = new Web3Modal({
     cacheProvider: true,
     providerOptions: {
       walletconnect: {
         package: WalletConnectProvider,
         options: {
-          rpc: {
-            97: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-          },
+          rpc: { 97: "https://data-seed-prebsc-1-s1.binance.org:8545/" },
           chainId: 97,
         },
       },
@@ -37,30 +35,17 @@ const App = () => {
   const connectWallet = async () => {
     try {
       const instance = await web3Modal.connect();
-
-      // Deep link for MetaMask Mobile
-      if (instance.isWalletConnect && instance.connector) {
-        const { uri } = instance.connector;
-        const deepLink = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
-        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-          window.location.href = deepLink;
-          return;
-        }
-      }
-
       const provider = new ethers.BrowserProvider(instance);
       const signer = await provider.getSigner();
-
       const userAccount = await signer.getAddress();
       setAccount(userAccount);
 
       const contractInstance = new ethers.Contract(contractAddress, abi, signer);
       setContract(contractInstance);
-
       alert(`Wallet connected: ${userAccount}`);
     } catch (error) {
       console.error("Error connecting wallet:", error);
-      alert("Failed to connect wallet. Please try again.");
+      alert("Failed to connect wallet.");
     }
   };
 
@@ -81,64 +66,53 @@ const App = () => {
     }
   };
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Earth's radius in km
-
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const executeClockFunction = async (methodName) => {
-    if (!contract) return alert("Connect your wallet first!");
-    if (!location) return alert("Fetch location first!");
-
-    const [userLat, userLong] = location.split(",").map(Number);
-    const distance = calculateDistance(userLat, userLong, predefinedLocation.lat, predefinedLocation.long);
-
-    if (distance > maxDistance) {
-      return alert(`You are too far from the worksite. Distance: ${distance.toFixed(2)} km (Max: ${maxDistance} km)`);
-    }
+  const fetchBackupRecords = async () => {
+    const apiURL = `https://api-testnet.bscscan.com/api?module=account&action=txlist&address=${contractAddress}&apikey=${apiKey}`;
 
     setLoading(true);
     try {
-      const tx = await contract[methodName](location);
-      await tx.wait();
-      alert(`${methodName === "clockIn" ? "Clocked in" : "Clocked out"} successfully!`);
+      const response = await axios.get(apiURL);
+      if (response.data.status === "1") {
+        const transactions = response.data.result;
+        const relevantRecords = transactions.filter(
+          (tx) => tx.to.toLowerCase() === contractAddress.toLowerCase()
+        );
+
+        const processedRecords = relevantRecords.map((tx) => ({
+          timestamp: new Date(Number(tx.timeStamp) * 1000).toLocaleString(),
+          from: tx.from,
+          hash: tx.hash,
+        }));
+
+        setRecords(processedRecords);
+        alert("Backup records fetched successfully!");
+      } else {
+        alert("No backup records found.");
+      }
     } catch (error) {
-      console.error(`Error during ${methodName}:`, error);
-      alert(`Error during ${methodName}.`);
+      console.error("Error fetching backup records:", error);
+      alert("Failed to fetch backup records.");
     } finally {
       setLoading(false);
     }
   };
 
   const fetchRecords = async () => {
+    if (!contract) {
+      alert("Fetching backup records...");
+      await fetchBackupRecords();
+      return;
+    }
+
     setLoading(true);
     try {
-      const url = `https://api-testnet.bscscan.com/api?module=account&action=txlist&address=${account}&startblock=0&endblock=99999999&sort=asc&apikey=${bscScanApiKey}`;
-      const response = await axios.get(url);
-
-      if (response.data.status === "1") {
-        const fetchedRecords = response.data.result.filter((tx) =>
-          tx.to.toLowerCase() === contractAddress.toLowerCase()
-        );
-        setRecords(fetchedRecords);
-        alert("Records fetched successfully!");
-      } else {
-        alert("No records found.");
-      }
+      const fetchedRecords = await contract.getClockRecords(account);
+      setRecords(fetchedRecords);
+      alert("Records fetched successfully!");
     } catch (error) {
-      console.error("Error fetching backup records:", error);
-      alert("Failed to fetch records. Please try again.");
+      console.error("Error fetching records:", error);
+      alert("Fallback to backup records.");
+      await fetchBackupRecords();
     } finally {
       setLoading(false);
     }
@@ -147,20 +121,38 @@ const App = () => {
   return (
     <div className="container mt-5">
       <h1>Sydney ITP Clock App</h1>
-      {loading && <div className="spinner-border text-primary" role="status"><span className="sr-only">Loading...</span></div>}
+      {loading && (
+        <div className="spinner-border text-primary" role="status">
+          <span className="sr-only">Loading...</span>
+        </div>
+      )}
       <p>Account: {account || "Not Connected"}</p>
-      <button className="btn btn-primary" onClick={connectWallet}>Connect Wallet</button>
-      <button className="btn btn-secondary ml-2" onClick={getGeolocation}>Get Location</button>
+      <button className="btn btn-primary" onClick={connectWallet}>
+        Connect Wallet
+      </button>
+      <button className="btn btn-secondary ml-2" onClick={getGeolocation}>
+        Get Location
+      </button>
       <p>Location: {location || "Not fetched yet"}</p>
-      <button className="btn btn-success ml-2" onClick={() => executeClockFunction("clockIn")} disabled={loading}>Clock In</button>
-      <button className="btn btn-danger ml-2" onClick={() => executeClockFunction("clockOut")} disabled={loading}>Clock Out</button>
-      <button className="btn btn-info ml-2" onClick={fetchRecords} disabled={loading}>Fetch Records</button>
+      <button
+        className="btn btn-info ml-2"
+        onClick={fetchRecords}
+        disabled={loading}
+      >
+        Fetch Records
+      </button>
       <div className="card mt-4">
         <div className="card-body">
           <h3>Clock Records:</h3>
           <ul>
             {records.map((record, index) => (
-              <li key={index}>Txn Hash: {record.hash}, Time: {new Date(record.timeStamp * 1000).toLocaleString()}</li>
+              <li key={index}>
+                {record.timestamp
+                  ? `Timestamp: ${record.timestamp}, From: ${record.from}, Tx Hash: ${record.hash}`
+                  : `Timestamp: ${new Date(
+                      Number(record.timestamp) * 1000
+                    ).toLocaleString()}, Location: ${record.location}`}
+              </li>
             ))}
           </ul>
         </div>
