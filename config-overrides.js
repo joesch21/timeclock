@@ -1,16 +1,18 @@
 const webpack = require("webpack");
 
 module.exports = function override(config) {
+  // Add polyfills for Node.js modules
   config.resolve.fallback = {
     ...config.resolve.fallback,
-    url: require.resolve("url/"), // Add polyfill for 'url'
-    os: require.resolve("os-browserify/browser"), // Add polyfill for 'os'
-    http: require.resolve("stream-http"), // Add polyfill for 'http'
-    https: require.resolve("https-browserify"), // Add polyfill for 'https'
-    assert: require.resolve("assert/"), // Add polyfill for 'assert'
-    buffer: require.resolve("buffer/"), // Add polyfill for 'buffer'
+    http: require.resolve("stream-http"),
+    https: require.resolve("https-browserify"),
+    os: require.resolve("os-browserify/browser"),
+    stream: require.resolve("stream-browserify"),
+    url: require.resolve("url"),
+    buffer: require.resolve("buffer"),
   };
 
+  // Add plugins to inject global polyfills
   config.plugins = [
     ...config.plugins,
     new webpack.ProvidePlugin({

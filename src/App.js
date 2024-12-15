@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Web3 from "web3";
+import { ethers } from "ethers"; // Import ethers
 import WalletConnectProvider from "@walletconnect/web3-provider";
 import Web3Modal from "web3modal";
 import abi from "./abi/EmployeeClockABI.json";
@@ -15,9 +15,10 @@ const App = () => {
   const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
 
   // Predefined worksite location
-  const predefinedLocation = { lat: -33.947346, long: 151.179428 }; // Example: Sydney ITP location
+  const predefinedLocation = { lat: -33.947346, long: 151.179428 }; // Sydney ITP location
   const maxDistance = 20; // Tolerance in kilometers
 
+  // Web3Modal setup
   const web3Modal = new Web3Modal({
     cacheProvider: true,
     providerOptions: {
@@ -25,7 +26,7 @@ const App = () => {
         package: WalletConnectProvider,
         options: {
           rpc: {
-            97: "https://data-seed-prebsc-1-s1.binance.org:8545/", // Binance Smart Chain Testnet
+            97: "https://data-seed-prebsc-1-s1.binance.org:8545/", // BSC Testnet
           },
           chainId: 97,
         },
@@ -35,16 +36,17 @@ const App = () => {
 
   const connectWallet = async () => {
     try {
-      const provider = await web3Modal.connect();
-      const web3 = new Web3(provider);
+      const instance = await web3Modal.connect();
+      const provider = new ethers.BrowserProvider(instance); // Correct provider initialization
+      const signer = await provider.getSigner();
 
-      const accounts = await web3.eth.getAccounts();
-      setAccount(accounts[0]);
+      const userAccount = await signer.getAddress();
+      setAccount(userAccount);
 
-      const contractInstance = new web3.eth.Contract(abi, contractAddress);
+      const contractInstance = new ethers.Contract(contractAddress, abi, signer);
       setContract(contractInstance);
 
-      alert(`Wallet connected: ${accounts[0]}`);
+      alert(`Wallet connected: ${userAccount}`);
     } catch (error) {
       console.error("Error connecting wallet:", error);
       alert("Failed to connect wallet.");
@@ -68,10 +70,9 @@ const App = () => {
     }
   };
 
-  // Haversine formula to calculate distance
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Earth's radius in kilometers
+    const R = 6371; // Radius of Earth in kilometers
 
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
@@ -82,7 +83,7 @@ const App = () => {
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in kilometers
+    return R * c; // Distance in km
   };
 
   const executeClockFunction = async (methodName) => {
@@ -98,7 +99,8 @@ const App = () => {
 
     setLoading(true);
     try {
-      await contract.methods[methodName](location).send({ from: account });
+      const tx = await contract[methodName](location);
+      await tx.wait();
       alert(`${methodName === "clockIn" ? "Clocked in" : "Clocked out"} successfully!`);
     } catch (error) {
       console.error(`Error during ${methodName}:`, error);
@@ -113,7 +115,7 @@ const App = () => {
 
     setLoading(true);
     try {
-      const fetchedRecords = await contract.methods.getClockRecords(account).call();
+      const fetchedRecords = await contract.getClockRecords(account);
       setRecords(fetchedRecords);
       alert("Records fetched successfully!");
     } catch (error) {
