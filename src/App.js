@@ -14,11 +14,15 @@ const App = () => {
 
   const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
 
+  // Predefined worksite location
+  const predefinedLocation = { lat: -33.947346, long: 151.179428 }; // Example: Sydney ITP location
+  const maxDistance = 20; // Tolerance in kilometers
+
   const web3Modal = new Web3Modal({
-    cacheProvider: true, // Keep the user's wallet cached
+    cacheProvider: true,
     providerOptions: {
       walletconnect: {
-        package: WalletConnectProvider, // Required
+        package: WalletConnectProvider,
         options: {
           rpc: {
             97: "https://data-seed-prebsc-1-s1.binance.org:8545/", // Binance Smart Chain Testnet
@@ -64,9 +68,33 @@ const App = () => {
     }
   };
 
+  // Haversine formula to calculate distance
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371; // Earth's radius in kilometers
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in kilometers
+  };
+
   const executeClockFunction = async (methodName) => {
     if (!contract) return alert("Connect your wallet first!");
     if (!location) return alert("Fetch location first!");
+
+    const [userLat, userLong] = location.split(",").map(Number);
+    const distance = calculateDistance(userLat, userLong, predefinedLocation.lat, predefinedLocation.long);
+
+    if (distance > maxDistance) {
+      return alert(`You are too far from the worksite. Distance: ${distance.toFixed(2)} km (Max: ${maxDistance} km)`);
+    }
 
     setLoading(true);
     try {
