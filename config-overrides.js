@@ -1,16 +1,12 @@
 const webpack = require("webpack");
 
-module.exports = function override(config, env) {
+module.exports = function override(config) {
   config.resolve.fallback = {
     ...config.resolve.fallback,
+    url: require.resolve("url/"),
     assert: require.resolve("assert/"),
     os: require.resolve("os-browserify/browser"),
     http: require.resolve("stream-http"),
-    https: require.resolve("https-browserify"),
-    buffer: require.resolve("buffer/"),
-    stream: require.resolve("stream-browserify"),
-    util: require.resolve("util/"),
-    process: require.resolve("process/browser"),
   };
 
   config.plugins = [
