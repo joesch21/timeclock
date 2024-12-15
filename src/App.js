@@ -37,7 +37,7 @@ const App = () => {
   const connectWallet = async () => {
     try {
       const instance = await web3Modal.connect();
-      const provider = new ethers.BrowserProvider(instance); // Correct provider initialization
+      const provider = new ethers.BrowserProvider(instance); // Web3Modal with ethers.js
       const signer = await provider.getSigner();
 
       const userAccount = await signer.getAddress();
@@ -49,7 +49,7 @@ const App = () => {
       alert(`Wallet connected: ${userAccount}`);
     } catch (error) {
       console.error("Error connecting wallet:", error);
-      alert("Failed to connect wallet.");
+      alert("Failed to connect wallet. Please try again.");
     }
   };
 
@@ -115,12 +115,19 @@ const App = () => {
 
     setLoading(true);
     try {
+      console.log("Fetching records for:", account);
       const fetchedRecords = await contract.getClockRecords(account);
-      setRecords(fetchedRecords);
-      alert("Records fetched successfully!");
+      console.log("Fetched records:", fetchedRecords);
+
+      if (fetchedRecords && fetchedRecords.length > 0) {
+        setRecords(fetchedRecords);
+        alert("Records fetched successfully!");
+      } else {
+        alert("No records found.");
+      }
     } catch (error) {
       console.error("Error fetching records:", error);
-      alert("Error fetching records.");
+      alert("Failed to fetch records. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -168,3 +175,4 @@ const App = () => {
 };
 
 export default App;
+
