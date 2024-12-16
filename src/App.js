@@ -70,7 +70,15 @@ const App = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          setLocation(`${latitude},${longitude}`);
+          
+          // Check if user is near the predefined location
+          const distance = calculateDistance(latitude, longitude, predefinedLocation.lat, predefinedLocation.long);
+  
+          if (distance <= maxDistance) {
+            setLocation("Sydney Airport"); // User is at or near the worksite
+          } else {
+            setLocation(`${latitude},${longitude}`); // Display coordinates if far away
+          }
         },
         (error) => {
           console.error("Error fetching location:", error);
@@ -81,6 +89,7 @@ const App = () => {
       alert("Geolocation is not supported by this browser.");
     }
   };
+  
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
