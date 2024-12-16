@@ -1,48 +1,69 @@
 import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
+import {
+  createWallet,
+  loadWallet,
+  loadWalletWithProvider,
+  getWalletBalance,
+  resetWallet,
+} from "./wallet";
 import abi from "./abi/EmployeeClockABI.json";
 import "./App.css";
 
+const rpcUrl = "https://data-seed-prebsc-1-s1.binance.org:8545/"; // BSC Testnet
+const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
+
 const App = () => {
-  const [wallet, setWallet] = useState(null);
-  const [account, setAccount] = useState(null);
+  const [walletDetails, setWalletDetails] = useState(null);
+  const [balance, setBalance] = useState("0");
   const [location, setLocation] = useState("");
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState([]);
 
-  const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
   const predefinedLocation = { lat: -33.947346, long: 151.179428 };
-  const maxDistance = 20; // Tolerance in kilometers
+  const maxDistance = 20; // in kilometers
 
   useEffect(() => {
-    const savedPrivateKey = localStorage.getItem("walletPrivateKey");
-    if (savedPrivateKey) loadWallet(savedPrivateKey);
+    const initWallet = async () => {
+      const existingWallet = loadWallet();
+      if (existingWallet) {
+        const wallet = loadWalletWithProvider(rpcUrl);
+        const walletBalance = await getWalletBalance(rpcUrl);
+        setWalletDetails(wallet);
+        setBalance(walletBalance);
+        setupContract(wallet);
+      }
+    };
+    initWallet();
   }, []);
 
-  const createWallet = async () => {
-    const newWallet = ethers.Wallet.createRandom();
-    localStorage.setItem("walletPrivateKey", newWallet.privateKey);
-    loadWallet(newWallet.privateKey);
-    alert(`Wallet created: ${newWallet.address}`);
+  const setupContract = (wallet) => {
+    const contractInstance = new ethers.Contract(contractAddress, abi, wallet);
+    setContract(contractInstance);
   };
 
-  const loadWallet = async (privateKey) => {
-    try {
-      const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
-      const walletInstance = new ethers.Wallet(privateKey, provider);
-      const contractInstance = new ethers.Contract(contractAddress, abi, walletInstance);
+  const handleCreateWallet = async () => {
+    const newWallet = createWallet();
+    const wallet = loadWalletWithProvider(rpcUrl);
+    const walletBalance = await getWalletBalance(rpcUrl);
+    setWalletDetails(wallet);
+    setBalance(walletBalance);
+    setupContract(wallet);
+    alert(`New wallet created: ${newWallet.address}`);
+  };
+  
 
-      setWallet(walletInstance);
-      setAccount(walletInstance.address);
-      setContract(contractInstance);
-
-      alert(`Wallet loaded: ${walletInstance.address}`);
-    } catch (error) {
-      console.error("Error loading wallet:", error);
-      alert("Failed to load wallet.");
+  const handleResetWallet = () => {
+    const confirmReset = window.confirm("Are you sure you want to reset the wallet? This action cannot be undone.");
+    if (confirmReset) {
+      resetWallet();
+      setWalletDetails(null);
+      setBalance("0");
+      alert("Wallet has been reset successfully.");
     }
   };
+  
 
   const getGeolocation = () => {
     if (navigator.geolocation) {
@@ -63,7 +84,7 @@ const App = () => {
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Earth radius in kilometers
+    const R = 6371; // Earth's radius in km
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
 
@@ -71,9 +92,8 @@ const App = () => {
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in km
+    return R * c;
   };
 
   const executeClockFunction = async (methodName) => {
@@ -84,7 +104,7 @@ const App = () => {
     const distance = calculateDistance(userLat, userLong, predefinedLocation.lat, predefinedLocation.long);
 
     if (distance > maxDistance) {
-      return alert(`You are too far from the worksite. Distance: ${distance.toFixed(2)} km`);
+      return alert(`You are too far from the worksite. Distance: ${distance.toFixed(2)} km (Max: ${maxDistance} km)`);
     }
 
     setLoading(true);
@@ -105,12 +125,12 @@ const App = () => {
 
     setLoading(true);
     try {
-      const fetchedRecords = await contract.getClockRecords(account);
+      const fetchedRecords = await contract.getClockRecords(walletDetails.address);
       setRecords(fetchedRecords);
       alert("Records fetched successfully!");
     } catch (error) {
       console.error("Error fetching records:", error);
-      alert("Failed to fetch records.");
+      alert("Failed to fetch records. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -119,37 +139,49 @@ const App = () => {
   return (
     <div className="container mt-5">
       <h1>Sydney ITP Clock App</h1>
-      {loading && (
-        <div className="spinner-border text-primary" role="status">
-          <span className="sr-only">Loading...</span>
-        </div>
-      )}
-      <p>Account: {account || "No wallet loaded"}</p>
-      {!wallet && (
-        <button className="btn btn-primary" onClick={createWallet}>
+      {loading && <div className="spinner-border text-primary" role="status"><span className="sr-only">Loading...</span></div>}
+      
+      {walletDetails ? (
+        <>
+          <p><strong>Wallet Address:</strong> {walletDetails.address}</p>
+          <p><strong>Balance:</strong> {balance} BNB</p>
+          <button className="btn btn-danger" onClick={handleResetWallet}>
+            Reset Wallet
+          </button>
+        </>
+      ) : (
+        <button className="btn btn-primary" onClick={handleCreateWallet}>
           Create Wallet
         </button>
       )}
+
       <button className="btn btn-secondary ml-2" onClick={getGeolocation}>
         Get Location
       </button>
-      <p>Location: {location || "Not fetched yet"}</p>
-      <button className="btn btn-success ml-2" onClick={() => executeClockFunction("clockIn")} disabled={loading}>
-        Clock In
-      </button>
-      <button className="btn btn-danger ml-2" onClick={() => executeClockFunction("clockOut")} disabled={loading}>
-        Clock Out
-      </button>
-      <button className="btn btn-info ml-2" onClick={fetchRecords} disabled={loading}>
-        Fetch Records
-      </button>
+      <p><strong>Location:</strong> {location || "Not fetched yet"}</p>
+
+      {walletDetails && (
+        <>
+          <button className="btn btn-success ml-2" onClick={() => executeClockFunction("clockIn")} disabled={loading}>
+            Clock In
+          </button>
+          <button className="btn btn-danger ml-2" onClick={() => executeClockFunction("clockOut")} disabled={loading}>
+            Clock Out
+          </button>
+          <button className="btn btn-info ml-2" onClick={fetchRecords} disabled={loading}>
+            Fetch Records
+          </button>
+        </>
+      )}
+
       <div className="card mt-4">
         <div className="card-body">
           <h3>Clock Records:</h3>
           <ul>
             {records.map((record, index) => (
               <li key={index}>
-                Timestamp: {new Date(Number(record.timestamp) * 1000).toLocaleString()}, Location: {record.location}
+                <strong>Timestamp:</strong> {new Date(Number(record.timestamp) * 1000).toLocaleString()} | 
+                <strong> Location:</strong> {record.location}
               </li>
             ))}
           </ul>
