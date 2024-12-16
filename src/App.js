@@ -1,11 +1,10 @@
-import React, { useState } from "react";
-import { ethers } from "ethers"; // Import ethers
-import WalletConnectProvider from "@walletconnect/web3-provider";
-import Web3Modal from "web3modal";
+import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import abi from "./abi/EmployeeClockABI.json";
 import "./App.css";
 
 const App = () => {
+  const [wallet, setWallet] = useState(null);
   const [account, setAccount] = useState(null);
   const [location, setLocation] = useState("");
   const [contract, setContract] = useState(null);
@@ -13,59 +12,37 @@ const App = () => {
   const [records, setRecords] = useState([]);
 
   const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
-
-  // Predefined worksite location
-  const predefinedLocation = { lat: -33.947346, long: 151.179428 }; // Sydney ITP location
+  const predefinedLocation = { lat: -33.947346, long: 151.179428 };
   const maxDistance = 20; // Tolerance in kilometers
 
-  // Web3Modal setup
-  const web3Modal = new Web3Modal({
-    cacheProvider: true,
-    providerOptions: {
-      walletconnect: {
-        package: WalletConnectProvider,
-        options: {
-          rpc: {
-            97: "https://data-seed-prebsc-1-s1.binance.org:8545/", // BSC Testnet
-          },
-          chainId: 97,
-        },
-      },
-    },
-  });
+  useEffect(() => {
+    const savedPrivateKey = localStorage.getItem("walletPrivateKey");
+    if (savedPrivateKey) loadWallet(savedPrivateKey);
+  }, []);
 
-  const connectWallet = async () => {
+  const createWallet = async () => {
+    const newWallet = ethers.Wallet.createRandom();
+    localStorage.setItem("walletPrivateKey", newWallet.privateKey);
+    loadWallet(newWallet.privateKey);
+    alert(`Wallet created: ${newWallet.address}`);
+  };
+
+  const loadWallet = async (privateKey) => {
     try {
-      const instance = await web3Modal.connect();
-  
-      // Check for WalletConnect Mobile Deep-Linking
-      if (instance.isWalletConnect && instance.connector) {
-        const { connector } = instance;
-        const uri = await connector.uri;
-        const deepLink = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
-  
-        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-          window.location.href = deepLink; // Open MetaMask Mobile directly
-          return;
-        }
-      }
-  
-      const provider = new ethers.BrowserProvider(instance);
-      const signer = await provider.getSigner();
-  
-      const userAccount = await signer.getAddress();
-      setAccount(userAccount);
-  
-      const contractInstance = new ethers.Contract(contractAddress, abi, signer);
+      const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+      const walletInstance = new ethers.Wallet(privateKey, provider);
+      const contractInstance = new ethers.Contract(contractAddress, abi, walletInstance);
+
+      setWallet(walletInstance);
+      setAccount(walletInstance.address);
       setContract(contractInstance);
-  
-      alert(`Wallet connected: ${userAccount}`);
+
+      alert(`Wallet loaded: ${walletInstance.address}`);
     } catch (error) {
-      console.error("Error connecting wallet:", error);
-      alert("Failed to connect wallet. Please try again.");
+      console.error("Error loading wallet:", error);
+      alert("Failed to load wallet.");
     }
   };
-  
 
   const getGeolocation = () => {
     if (navigator.geolocation) {
@@ -86,8 +63,7 @@ const App = () => {
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Radius of Earth in kilometers
-
+    const R = 6371; // Earth radius in kilometers
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
 
@@ -101,14 +77,14 @@ const App = () => {
   };
 
   const executeClockFunction = async (methodName) => {
-    if (!contract) return alert("Connect your wallet first!");
+    if (!contract) return alert("Load or create a wallet first!");
     if (!location) return alert("Fetch location first!");
 
     const [userLat, userLong] = location.split(",").map(Number);
     const distance = calculateDistance(userLat, userLong, predefinedLocation.lat, predefinedLocation.long);
 
     if (distance > maxDistance) {
-      return alert(`You are too far from the worksite. Distance: ${distance.toFixed(2)} km (Max: ${maxDistance} km)`);
+      return alert(`You are too far from the worksite. Distance: ${distance.toFixed(2)} km`);
     }
 
     setLoading(true);
@@ -125,37 +101,20 @@ const App = () => {
   };
 
   const fetchRecords = async () => {
-    if (!contract) return alert("Connect your wallet first!");
-  
+    if (!contract) return alert("Load or create a wallet first!");
+
     setLoading(true);
-  
     try {
-      // Use a read-only provider for reading data
-      const readOnlyProvider = new ethers.JsonRpcProvider(
-        "https://data-seed-prebsc-1-s1.binance.org:8545/" // BSC Testnet
-      );
-  
-      const readOnlyContract = new ethers.Contract(contractAddress, abi, readOnlyProvider);
-  
-      // Fetch records from the read-only provider
-      console.log("Fetching records...");
-      const fetchedRecords = await readOnlyContract.getClockRecords(account);
-      console.log("Fetched Records:", fetchedRecords);
-  
-      if (fetchedRecords && fetchedRecords.length > 0) {
-        setRecords(fetchedRecords);
-        alert("Records fetched successfully!");
-      } else {
-        alert("No records found.");
-      }
+      const fetchedRecords = await contract.getClockRecords(account);
+      setRecords(fetchedRecords);
+      alert("Records fetched successfully!");
     } catch (error) {
       console.error("Error fetching records:", error);
-      alert("Failed to fetch records. Please try again.");
+      alert("Failed to fetch records.");
     } finally {
       setLoading(false);
     }
   };
-  
 
   return (
     <div className="container mt-5">
@@ -165,10 +124,12 @@ const App = () => {
           <span className="sr-only">Loading...</span>
         </div>
       )}
-      <p>Account: {account || "Not Connected"}</p>
-      <button className="btn btn-primary" onClick={connectWallet}>
-        Connect Wallet
-      </button>
+      <p>Account: {account || "No wallet loaded"}</p>
+      {!wallet && (
+        <button className="btn btn-primary" onClick={createWallet}>
+          Create Wallet
+        </button>
+      )}
       <button className="btn btn-secondary ml-2" onClick={getGeolocation}>
         Get Location
       </button>
@@ -199,4 +160,3 @@ const App = () => {
 };
 
 export default App;
-
