@@ -21,8 +21,8 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState([]);
 
-  const predefinedLocation = { lat: -33.947346, long: 151.179428 };
-  const maxDistance = 5; // in kilometers
+  const predefinedLocation = { lat: -33.9324411, long: 151.1654545 };
+  const maxDistance = 2; // in kilometers
 
   useEffect(() => {
     const initWallet = async () => {
