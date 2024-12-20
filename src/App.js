@@ -39,6 +39,10 @@ const App = () => {
   };
 
   const handlePasswordSubmit = async () => {
+    if (!password) {
+      alert("Password is required to load the wallet.");
+      return;
+    }
     setShowPasswordModal(false);
     try {
       const wallet = loadWallet(password);
@@ -48,12 +52,16 @@ const App = () => {
         setWalletDetails(walletWithProvider);
         setBalance(walletBalance);
         setupContract(walletWithProvider);
+        alert("Wallet loaded successfully!");
+      } else {
+        alert("No wallet found. Create a new wallet.");
       }
     } catch (error) {
-      console.error("Failed to load wallet:", error);
+      console.error("Error loading wallet:", error);
       alert("Failed to load wallet. Please try again.");
     }
   };
+
 
   const setupContract = (wallet) => {
     try {
