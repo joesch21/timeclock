@@ -10,8 +10,10 @@ import {
 import abi from "./abi/EmployeeClockABI.json";
 import "./App.css";
 
-const rpcUrl = "https://data-seed-prebsc-1-s1.binance.org:8545/"; // BSC Testnet
+const rpcUrl = process.env.REACT_APP_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545/"; // BSC Testnet
 const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
+
+
 
 const App = () => {
   const [walletDetails, setWalletDetails] = useState(null);
@@ -25,18 +27,27 @@ const App = () => {
   const maxDistance = 2; // in kilometers
 
   useEffect(() => {
+    console.log("RPC URL:", rpcUrl);
+    console.log("Secret Key:", process.env.REACT_APP_SECRET_KEY); // Do not log sensitive keys in production
+  
     const initWallet = async () => {
-      const existingWallet = loadWallet();
-      if (existingWallet) {
-        const wallet = loadWalletWithProvider(rpcUrl);
-        const walletBalance = await getWalletBalance(rpcUrl);
-        setWalletDetails(wallet);
-        setBalance(walletBalance);
-        setupContract(wallet);
+      const password = prompt("Enter your wallet password to load the wallet:");
+      try {
+        const wallet = loadWallet(password);
+        if (wallet) {
+          const walletWithProvider = loadWalletWithProvider(rpcUrl, password);
+          const walletBalance = await getWalletBalance(rpcUrl, password);
+          setWalletDetails(walletWithProvider);
+          setBalance(walletBalance);
+          setupContract(walletWithProvider);
+        }
+      } catch (error) {
+        alert("Failed to load wallet: " + error.message);
       }
     };
     initWallet();
   }, []);
+  
 
   const setupContract = (wallet) => {
     const contractInstance = new ethers.Contract(contractAddress, abi, wallet);
@@ -44,15 +55,23 @@ const App = () => {
   };
 
   const handleCreateWallet = async () => {
-    const newWallet = createWallet();
-    const wallet = loadWalletWithProvider(rpcUrl);
-    const walletBalance = await getWalletBalance(rpcUrl);
-    setWalletDetails(wallet);
-    setBalance(walletBalance);
-    setupContract(wallet);
-    alert(`New wallet created: ${newWallet.address}`);
+    const password = prompt("Enter a password to secure your wallet:");
+    if (!password) {
+      alert("Password is required to create a wallet.");
+      return;
+    }
+    try {
+      const newWallet = createWallet(password);
+      const walletWithProvider = loadWalletWithProvider(rpcUrl, password);
+      const walletBalance = await getWalletBalance(rpcUrl, password);
+      setWalletDetails(walletWithProvider);
+      setBalance(walletBalance);
+      setupContract(walletWithProvider);
+      alert(`New wallet created: ${newWallet.address}`);
+    } catch (error) {
+      alert("Failed to create wallet: " + error.message);
+    }
   };
-  
 
   const handleResetWallet = () => {
     const confirmReset = window.confirm("Are you sure you want to reset the wallet? This action cannot be undone.");
@@ -63,17 +82,16 @@ const App = () => {
       alert("Wallet has been reset successfully.");
     }
   };
-  
 
   const getGeolocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          
+
           // Check if user is near the predefined location
           const distance = calculateDistance(latitude, longitude, predefinedLocation.lat, predefinedLocation.long);
-  
+
           if (distance <= maxDistance) {
             setLocation("Sydney Airport"); // User is at or near the worksite
           } else {
@@ -89,7 +107,6 @@ const App = () => {
       alert("Geolocation is not supported by this browser.");
     }
   };
-  
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
@@ -149,7 +166,7 @@ const App = () => {
     <div className="container mt-5">
       <h1>Sydney ITP Clock App</h1>
       {loading && <div className="spinner-border text-primary" role="status"><span className="sr-only">Loading...</span></div>}
-      
+
       {walletDetails ? (
         <>
           <p><strong>Wallet Address:</strong> {walletDetails.address}</p>
