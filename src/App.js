@@ -13,8 +13,6 @@ import "./App.css";
 const rpcUrl = process.env.REACT_APP_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545/"; // BSC Testnet
 const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
 
-
-
 const App = () => {
   const [walletDetails, setWalletDetails] = useState(null);
   const [balance, setBalance] = useState("0");
@@ -28,8 +26,11 @@ const App = () => {
 
   useEffect(() => {
     console.log("RPC URL:", rpcUrl);
-    console.log("Secret Key:", process.env.REACT_APP_SECRET_KEY); // Do not log sensitive keys in production
-  
+    if (!rpcUrl) {
+      console.error("RPC URL is missing. Check your .env file.");
+      return;
+    }
+
     const initWallet = async () => {
       const password = prompt("Enter your wallet password to load the wallet:");
       try {
@@ -42,22 +43,26 @@ const App = () => {
           setupContract(walletWithProvider);
         }
       } catch (error) {
-        alert("Failed to load wallet: " + error.message);
+        console.error("Failed to load wallet:", error);
+        alert("Failed to load wallet. Please try again.");
       }
     };
     initWallet();
   }, []);
-  
 
   const setupContract = (wallet) => {
-    const contractInstance = new ethers.Contract(contractAddress, abi, wallet);
-    setContract(contractInstance);
+    try {
+      const contractInstance = new ethers.Contract(contractAddress, abi, wallet);
+      setContract(contractInstance);
+    } catch (error) {
+      console.error("Error setting up contract:", error);
+    }
   };
 
   const handleCreateWallet = async () => {
     const password = prompt("Enter a password to secure your wallet:");
-    if (!password) {
-      alert("Password is required to create a wallet.");
+    if (!password || password.length < 8) {
+      alert("Password must be at least 8 characters long.");
       return;
     }
     try {
@@ -69,7 +74,8 @@ const App = () => {
       setupContract(walletWithProvider);
       alert(`New wallet created: ${newWallet.address}`);
     } catch (error) {
-      alert("Failed to create wallet: " + error.message);
+      console.error("Failed to create wallet:", error);
+      alert("Failed to create wallet. Please try again.");
     }
   };
 
@@ -89,13 +95,12 @@ const App = () => {
         (position) => {
           const { latitude, longitude } = position.coords;
 
-          // Check if user is near the predefined location
           const distance = calculateDistance(latitude, longitude, predefinedLocation.lat, predefinedLocation.long);
 
           if (distance <= maxDistance) {
-            setLocation("Sydney Airport"); // User is at or near the worksite
+            setLocation("Sydney Airport");
           } else {
-            setLocation(`${latitude},${longitude}`); // Display coordinates if far away
+            setLocation(`${latitude},${longitude}`);
           }
         },
         (error) => {
@@ -110,7 +115,7 @@ const App = () => {
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
 
