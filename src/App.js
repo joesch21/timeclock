@@ -20,6 +20,8 @@ const App = () => {
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState([]);
+  const [password, setPassword] = useState("");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const predefinedLocation = { lat: -33.9324411, long: 151.1654545 };
   const maxDistance = 2; // in kilometers
@@ -30,25 +32,28 @@ const App = () => {
       console.error("RPC URL is missing. Check your .env file.");
       return;
     }
-
-    const initWallet = async () => {
-      const password = prompt("Enter your wallet password to load the wallet:");
-      try {
-        const wallet = loadWallet(password);
-        if (wallet) {
-          const walletWithProvider = loadWalletWithProvider(rpcUrl, password);
-          const walletBalance = await getWalletBalance(rpcUrl, password);
-          setWalletDetails(walletWithProvider);
-          setBalance(walletBalance);
-          setupContract(walletWithProvider);
-        }
-      } catch (error) {
-        console.error("Failed to load wallet:", error);
-        alert("Failed to load wallet. Please try again.");
-      }
-    };
-    initWallet();
   }, []);
+
+  const initWallet = async () => {
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    setShowPasswordModal(false);
+    try {
+      const wallet = loadWallet(password);
+      if (wallet) {
+        const walletWithProvider = loadWalletWithProvider(rpcUrl, password);
+        const walletBalance = await getWalletBalance(rpcUrl, password);
+        setWalletDetails(walletWithProvider);
+        setBalance(walletBalance);
+        setupContract(walletWithProvider);
+      }
+    } catch (error) {
+      console.error("Failed to load wallet:", error);
+      alert("Failed to load wallet. Please try again.");
+    }
+  };
 
   const setupContract = (wallet) => {
     try {
@@ -60,7 +65,11 @@ const App = () => {
   };
 
   const handleCreateWallet = async () => {
-    const password = prompt("Enter a password to secure your wallet:");
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordForNewWallet = async () => {
+    setShowPasswordModal(false);
     if (!password || password.length < 8) {
       alert("Password must be at least 8 characters long.");
       return;
@@ -94,7 +103,6 @@ const App = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-
           const distance = calculateDistance(latitude, longitude, predefinedLocation.lat, predefinedLocation.long);
 
           if (distance <= maxDistance) {
@@ -170,6 +178,7 @@ const App = () => {
   return (
     <div className="container mt-5">
       <h1>Sydney ITP Clock App</h1>
+
       {loading && <div className="spinner-border text-primary" role="status"><span className="sr-only">Loading...</span></div>}
 
       {walletDetails ? (
@@ -181,8 +190,8 @@ const App = () => {
           </button>
         </>
       ) : (
-        <button className="btn btn-primary" onClick={handleCreateWallet}>
-          Create Wallet
+        <button className="btn btn-primary" onClick={initWallet}>
+          Load Wallet
         </button>
       )}
 
@@ -203,6 +212,21 @@ const App = () => {
             Fetch Records
           </button>
         </>
+      )}
+
+      {showPasswordModal && (
+        <div className="password-modal">
+          <h2>Enter Password</h2>
+          <input
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button className="btn btn-success" onClick={walletDetails ? handlePasswordSubmit : handlePasswordForNewWallet}>
+            Submit
+          </button>
+        </div>
       )}
 
       <div className="card mt-4">

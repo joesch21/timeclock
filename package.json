@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-syntax-flow": "^7.26.0",
+    "@babel/plugin-transform-react-jsx": "^7.25.9",
     "@metamask/detect-provider": "^1.2.0",
     "@walletconnect/web3-provider": "^1.8.0",
     "@web3-onboard/injected-wallets": "^2.11.2",
@@ -43,6 +46,9 @@
   "engines": {
     "node": "22.x",
     "npm": "8.x"
+  },
+  "rules": {
+    "no-unused-vars": "warn"
   },
   "browserslist": {
     "production": [
