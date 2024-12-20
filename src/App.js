@@ -22,38 +22,32 @@ const App = () => {
   const [records, setRecords] = useState([]);
   const [password, setPassword] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-
   const predefinedLocation = { lat: -33.9324411, long: 151.1654545 };
   const maxDistance = 2; // in kilometers
 
+  // Initialize wallet on load
   useEffect(() => {
     console.log("RPC URL:", rpcUrl);
     if (!rpcUrl) {
       console.error("RPC URL is missing. Check your .env file.");
       return;
     }
-  }, []);
-
-  const initWallet = async () => {
-    setShowPasswordModal(true);
-  };
-
-  const handlePasswordSubmit = async () => {
-    setShowPasswordModal(false);
-    try {
-      const wallet = loadWallet(password);
-      if (wallet) {
-        const walletWithProvider = loadWalletWithProvider(rpcUrl, password);
-        const walletBalance = await getWalletBalance(rpcUrl, password);
-        setWalletDetails(walletWithProvider);
-        setBalance(walletBalance);
-        setupContract(walletWithProvider);
+    const init = async () => {
+      try {
+        const wallet = loadWallet(password);
+        if (wallet) {
+          const walletWithProvider = loadWalletWithProvider(rpcUrl, password);
+          const walletBalance = await getWalletBalance(rpcUrl, password);
+          setWalletDetails(walletWithProvider);
+          setBalance(walletBalance);
+          setupContract(walletWithProvider);
+        }
+      } catch (error) {
+        console.error("Failed to load wallet on initialization:", error);
       }
-    } catch (error) {
-      console.error("Failed to load wallet:", error);
-      alert("Failed to load wallet. Please try again.");
-    }
-  };
+    };
+    init();
+  }, [password]);
 
   const setupContract = (wallet) => {
     try {
@@ -64,8 +58,8 @@ const App = () => {
     }
   };
 
-  const handleCreateWallet = async () => {
-    setShowPasswordModal(true);
+  const handleCreateWallet = () => {
+    setShowPasswordModal(true); // Show password prompt for wallet creation
   };
 
   const handlePasswordForNewWallet = async () => {
@@ -190,8 +184,8 @@ const App = () => {
           </button>
         </>
       ) : (
-        <button className="btn btn-primary" onClick={initWallet}>
-          Load Wallet
+        <button className="btn btn-primary" onClick={handleCreateWallet}>
+          Create Wallet
         </button>
       )}
 
@@ -223,7 +217,10 @@ const App = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button className="btn btn-success" onClick={walletDetails ? handlePasswordSubmit : handlePasswordForNewWallet}>
+          <button
+            className="btn btn-success"
+            onClick={walletDetails ? handlePasswordSubmit : handlePasswordForNewWallet}
+          >
             Submit
           </button>
         </div>
