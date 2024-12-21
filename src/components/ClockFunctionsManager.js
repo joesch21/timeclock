@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import { executeClockIn, executeClockOut, fetchClockRecords } from "../utils/clockFunctions";
-
-
-const WORKPLACE_LAT = -33.931672;
-const WORKPLACE_LON = 151.165399;
-const MAX_DISTANCE_KM = 20; // Maximum allowed distance
+import { ethers } from "ethers";
 
 const ClockFunctionsManager = ({ contract }) => {
   const [loading, setLoading] = useState(false);
@@ -12,16 +7,22 @@ const ClockFunctionsManager = ({ contract }) => {
   const [currentLocation, setCurrentLocation] = useState("");
   const [distanceToWorkplace, setDistanceToWorkplace] = useState(null);
 
-  // Calculate distance
+  const WORKPLACE_LAT = -33.931672;
+  const WORKPLACE_LON = 151.165399;
+  const MAX_DISTANCE_KM = 20;
+
+  // Calculate distance between two coordinates
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth's radius in km
+    const R = 6371; // Earth's radius in kilometers
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in km
+    return R * c; // Distance in kilometers
   };
 
   // Fetch current location
@@ -37,9 +38,10 @@ const ClockFunctionsManager = ({ contract }) => {
         const distance = calculateDistance(latitude, longitude, WORKPLACE_LAT, WORKPLACE_LON);
 
         if (distance <= MAX_DISTANCE_KM) {
-          setCurrentLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          const location = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          setCurrentLocation(location);
           setDistanceToWorkplace(distance.toFixed(2));
-          alert(`Location fetched: You are ${distance.toFixed(2)} km from the workplace.`);
+          alert(`Location fetched: ${location}. You are within ${distance.toFixed(2)} km of the workplace.`);
         } else {
           setDistanceToWorkplace(distance.toFixed(2));
           alert(`You are ${distance.toFixed(2)} km away from the workplace. Clock-in/out is not allowed.`);
@@ -47,58 +49,60 @@ const ClockFunctionsManager = ({ contract }) => {
       },
       (error) => {
         console.error("Error fetching location:", error);
-        alert("Failed to fetch location.");
+        alert("Failed to fetch location. Please try again.");
       }
     );
   };
 
-  // Clock in
+  // Clock In Function
   const handleClockIn = async () => {
     if (!contract) {
       alert("Contract not initialized. Load wallet first.");
       return;
     }
     if (!currentLocation) {
-      alert("Location not set. Fetch your location first.");
+      alert("Location not set. Please fetch your location first.");
       return;
     }
 
     setLoading(true);
     try {
-      await executeClockIn(contract, currentLocation); // Call ABI-defined function
+      const tx = await contract.clockIn(currentLocation);
+      await tx.wait();
       alert("Clocked in successfully!");
     } catch (error) {
       console.error("Error during Clock In:", error);
-      alert(`Failed to clock in. ${error.message}`);
+      alert("Failed to clock in. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Clock out
+  // Clock Out Function
   const handleClockOut = async () => {
     if (!contract) {
       alert("Contract not initialized. Load wallet first.");
       return;
     }
     if (!currentLocation) {
-      alert("Location not set. Fetch your location first.");
+      alert("Location not set. Please fetch your location first.");
       return;
     }
 
     setLoading(true);
     try {
-      await executeClockOut(contract, currentLocation); // Call ABI-defined function
+      const tx = await contract.clockOut(currentLocation);
+      await tx.wait();
       alert("Clocked out successfully!");
     } catch (error) {
       console.error("Error during Clock Out:", error);
-      alert(`Failed to clock out. ${error.message}`);
+      alert("Failed to clock out. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch clock history
+  // Fetch Clock-In/Out History
   const handleGetHistory = async () => {
     if (!contract) {
       alert("Contract not initialized. Load wallet first.");
@@ -107,11 +111,19 @@ const ClockFunctionsManager = ({ contract }) => {
 
     setLoading(true);
     try {
-      const records = await fetchClockRecords(contract); // Call ABI-defined function
-      setHistory(records);
+      const records = await contract.getClockRecords();
+      setHistory(
+        records.map((record) => ({
+          timestamp: new Date(record.timestamp * 1000).toLocaleString("en-AU", {
+            timeZone: "Australia/Sydney",
+          }),
+          location: record.location,
+        }))
+      );
+      alert("History fetched successfully!");
     } catch (error) {
       console.error("Error fetching history:", error);
-      alert("Failed to fetch clock-in/out history.");
+      alert("Failed to fetch clock-in/out history. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -120,20 +132,20 @@ const ClockFunctionsManager = ({ contract }) => {
   return (
     <div>
       <h2>Clock Functions</h2>
-      <button onClick={handleGetLocation} disabled={loading}>
+      <button className="btn btn-info" onClick={handleGetLocation} disabled={loading}>
         {loading ? "Fetching Location..." : "Get Location"}
       </button>
       <p>
         Current Location: {currentLocation || "Not Set"}{" "}
         {distanceToWorkplace && `(${distanceToWorkplace} km from workplace)`}
       </p>
-      <button onClick={handleClockIn} disabled={loading || !currentLocation}>
+      <button className="btn btn-success" onClick={handleClockIn} disabled={loading || !currentLocation}>
         {loading ? "Clocking In..." : "Clock In"}
       </button>
-      <button onClick={handleClockOut} disabled={loading || !currentLocation}>
+      <button className="btn btn-danger" onClick={handleClockOut} disabled={loading || !currentLocation}>
         {loading ? "Clocking Out..." : "Clock Out"}
       </button>
-      <button onClick={handleGetHistory} disabled={loading}>
+      <button className="btn btn-info" onClick={handleGetHistory} disabled={loading}>
         {loading ? "Fetching History..." : "Get History"}
       </button>
       {history.length > 0 && (
@@ -142,8 +154,7 @@ const ClockFunctionsManager = ({ contract }) => {
           <ul>
             {history.map((record, index) => (
               <li key={index}>
-                <strong>Timestamp:</strong> {new Date(record.timestamp * 1000).toLocaleString()} -{" "}
-                <strong>Location:</strong> {record.location}
+                <strong>Timestamp:</strong> {record.timestamp} - <strong>Location:</strong> {record.location}
               </li>
             ))}
           </ul>
