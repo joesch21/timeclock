@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+
 const ClockFunctionsManager = ({ contract }) => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);

@@ -1,14 +1,17 @@
 import React, { useState } from "react";
+import "../TransactionHistory.css"; // Create a CSS file for the modal styles
 
 const TransactionHistory = ({ walletAddress }) => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+
   const apiKey = process.env.REACT_APP_BSCSCAN_API_KEY; // API key for BscScan
   const bscScanUrl = "https://api-testnet.bscscan.com/api";
 
-  // Function selectors for clockIn and clockOut
-  const CLOCK_IN_SELECTOR = "0xa0712d68"; // First 4 bytes of keccak256("clockIn(string)")
-  const CLOCK_OUT_SELECTOR = "0xc2388669"; // First 4 bytes of keccak256("clockOut(string)")
+  // Function selectors
+  const CLOCK_IN_SELECTOR = "0xa0712d68"; // keccak256("clockIn(string)")
+  const CLOCK_OUT_SELECTOR = "0xc2388669"; // keccak256("clockOut(string)")
 
   const fetchHistory = async () => {
     if (!walletAddress) {
@@ -29,9 +32,8 @@ const TransactionHistory = ({ walletAddress }) => {
         return;
       }
 
-      // Map transactions to human-readable format
       const transactions = data.result
-        .filter((tx) => tx.to && tx.to.toLowerCase() === "0x61f305b899f70aef26192fc8a81551b252bffcb8".toLowerCase()) // Filter for relevant contract
+        .filter((tx) => tx.to && tx.to.toLowerCase() === "0x61f305b899f70aef26192fc8a81551b252bffcb8".toLowerCase())
         .map((tx) => {
           let method = "Unknown";
           if (tx.input.startsWith(CLOCK_IN_SELECTOR)) {
@@ -57,6 +59,7 @@ const TransactionHistory = ({ walletAddress }) => {
         });
 
       setHistory(transactions);
+      setShowModal(true); // Show the modal with the history
     } catch (error) {
       console.error("Error fetching transactions:", error);
       alert("Failed to fetch transaction history. Please try again.");
@@ -71,16 +74,27 @@ const TransactionHistory = ({ walletAddress }) => {
       <button className="btn btn-info" onClick={fetchHistory} disabled={loading}>
         {loading ? "Fetching History..." : "Get History"}
       </button>
-      {history.length > 0 && (
-        <div>
-          <h3>Latest Transactions</h3>
-          <ul>
-            {history.map((tx, index) => (
-              <li key={index}>
-                <strong>{tx.method}</strong> at Sydney Airport on {tx.time}.
-              </li>
-            ))}
-          </ul>
+
+      {/* Modal for displaying history */}
+      {showModal && (
+        <div className="modal">
+          <div className="modal-content">
+            <span className="close" onClick={() => setShowModal(false)}>
+              &times;
+            </span>
+            <h3>Transaction History</h3>
+            {history.length > 0 ? (
+              <ul>
+                {history.map((tx, index) => (
+                  <li key={index}>
+                    <strong>{tx.method}</strong> at Sydney Airport on {tx.time}.
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No transactions found.</p>
+            )}
+          </div>
         </div>
       )}
     </div>
