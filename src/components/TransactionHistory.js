@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "../TransactionHistory.css"; // Create a CSS file for the modal styles
+import "../TransactionHistory.css"; // Ensure you have a CSS file for the modal styles
 
 const TransactionHistory = ({ walletAddress }) => {
   const [loading, setLoading] = useState(false);
@@ -68,6 +68,9 @@ const TransactionHistory = ({ walletAddress }) => {
     }
   };
 
+  // Check if the view is on mobile
+  const isMobile = window.innerWidth <= 768;
+
   return (
     <div>
       <h2>Transaction History</h2>
@@ -77,7 +80,7 @@ const TransactionHistory = ({ walletAddress }) => {
 
       {/* Modal for displaying history */}
       {showModal && (
-        <div className="modal">
+        <div className="modal" style={{ fontSize: isMobile ? "1.2rem" : "1rem" }}>
           <div className="modal-content">
             <span className="close" onClick={() => setShowModal(false)}>
               &times;
