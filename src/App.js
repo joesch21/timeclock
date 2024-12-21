@@ -10,14 +10,14 @@ import "./App.css";
 const rpcUrl =
   process.env.REACT_APP_RPC_URL ||
   "https://data-seed-prebsc-1-s1.binance.org:8545/"; // Default to BSC Testnet
-const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
+const contractAddress = "0x4ACFE507138b73393Bc97C8913d30f79892eF1f2";
 
 const App = () => {
-  const [contract, setContract] = useState(null);
-  const [provider, setProvider] = useState(null);
-  const [walletAddress, setWalletAddress] = useState("");
-  const [userLocation, setUserLocation] = useState("");
-  const [proximity, setProximity] = useState(false);
+  const [contract, setContract] = useState(null); // Smart contract instance
+  const [provider, setProvider] = useState(null); // Provider instance
+  const [walletDetails, setWalletDetails] = useState(null); // Wallet details (address and signer)
+  const [location, setLocation] = useState(""); // User's current geolocation
+  const [proximity, setProximity] = useState(false); // Proximity status
 
   // Initialize the contract using the provided wallet
   const initializeContract = (wallet) => {
@@ -34,7 +34,7 @@ const App = () => {
       const signer = wallet.connect(newProvider); // Connect wallet to provider
       const initializedContract = new ethers.Contract(contractAddress, abi, signer);
       setContract(initializedContract); // Save contract in state
-      setWalletAddress(wallet.address); // Save wallet address in state
+      setWalletDetails(wallet); // Save wallet details
       console.log("Contract initialized:", initializedContract);
     } catch (error) {
       console.error("Failed to initialize the contract:", error);
@@ -47,23 +47,24 @@ const App = () => {
       <h1>Sydney ITP Clock App</h1>
 
       {/* Wallet Manager: Handles wallet creation/loading */}
-      <WalletManager setContract={initializeContract} rpcUrl={rpcUrl} />
+      <WalletManager setWalletDetails={setWalletDetails} setContract={initializeContract} />
 
       {/* Geolocation Manager: Handles user location and proximity */}
-      <GeolocationManager setLocation={setUserLocation} setProximity={setProximity} />
+      <GeolocationManager setLocation={setLocation} setProximity={setProximity} />
 
       {/* Clock Functions Manager: Handles clock in/out operations */}
-      {contract && (
+      {contract && walletDetails && (
         <ClockFunctionsManager
           contract={contract}
-          location={userLocation}
+          walletDetails={walletDetails}
+          location={location}
           proximity={proximity}
         />
       )}
 
       {/* Transaction History: Fetch and display transaction history */}
-      {provider && walletAddress && (
-        <TransactionHistory provider={provider} walletAddress={walletAddress} />
+      {provider && walletDetails?.address && (
+        <TransactionHistory provider={provider} walletAddress={walletDetails.address} />
       )}
     </div>
   );

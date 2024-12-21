@@ -14,6 +14,7 @@ const WalletManager = ({ setContract }) => {
   const [balance, setBalance] = useState("0");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Load wallet address from localStorage on component mount
   useEffect(() => {
@@ -21,21 +22,24 @@ const WalletManager = ({ setContract }) => {
       const savedAddress = loadWalletAddressFromLocalStorage();
       if (savedAddress) {
         try {
-          const wallet = loadWallet(password, rpcUrl);
+          setLoading(true);
+          // Decrypt wallet only if a valid password is entered later
+          const wallet = loadWallet("default_password_placeholder", rpcUrl); // Dummy placeholder
           const walletBalance = await getWalletBalance(wallet);
           setWalletDetails(wallet);
           setBalance(walletBalance);
           setContract(wallet);
-          alert("Wallet loaded successfully from local storage.");
+          console.log("Wallet loaded successfully from local storage.");
         } catch (error) {
           console.error("Failed to load wallet on initialization:", error);
+        } finally {
+          setLoading(false);
         }
       }
     };
-  
+
     loadWalletOnInit();
-  }, []); // Remove 'rpcUrl' from dependencies
-  
+  }, [setContract]); // Remove password dependency from here
 
   // Create a new wallet
   const handleCreateWallet = async () => {
@@ -84,9 +88,45 @@ const WalletManager = ({ setContract }) => {
     }
   };
 
+  // Copy wallet address to clipboard
+  const handleCopyWalletAddress = () => {
+    if (!walletDetails?.address) {
+      alert("No wallet address to copy.");
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(walletDetails.address)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000); // Reset copied status after 3 seconds
+        alert("Wallet address copied to clipboard.");
+      })
+      .catch((error) => {
+        console.error("Failed to copy wallet address:", error);
+        alert("Failed to copy wallet address. Please try again.");
+      });
+  };
+
+  // Send wallet address via email
+  const handleSendEmail = () => {
+    if (!walletDetails?.address) {
+      alert("No wallet address to send.");
+      return;
+    }
+
+    const email = "admin@example.com"; // Replace with admin's email
+    const subject = "Wallet Address Submission";
+    const body = `Hello,\n\nHere is my wallet address: ${walletDetails.address}\n\nThank you.`;
+
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
+  };
+
   return (
     <div>
-      <h2>Wallet Management</h2>
+      <h2>Personal Wallet</h2>
       <input
         type="password"
         placeholder="Enter password"
@@ -108,6 +148,10 @@ const WalletManager = ({ setContract }) => {
           <p>
             <strong>Balance:</strong> {balance} BNB
           </p>
+          <button onClick={handleCopyWalletAddress}>
+            {copied ? "Copied!" : "Copy Wallet Address"}
+          </button>
+          <button onClick={handleSendEmail}>Send Wallet Address via Email</button>
         </div>
       )}
     </div>

@@ -2,9 +2,14 @@
 	{
 		"inputs": [
 			{
-				"internalType": "string",
-				"name": "location",
-				"type": "string"
+				"internalType": "int256",
+				"name": "latitude",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "longitude",
+				"type": "int256"
 			}
 		],
 		"name": "clockIn",
@@ -29,9 +34,15 @@
 			},
 			{
 				"indexed": false,
-				"internalType": "string",
-				"name": "location",
-				"type": "string"
+				"internalType": "int256",
+				"name": "latitude",
+				"type": "int256"
+			},
+			{
+				"indexed": false,
+				"internalType": "int256",
+				"name": "longitude",
+				"type": "int256"
 			}
 		],
 		"name": "ClockIn",
@@ -40,9 +51,19 @@
 	{
 		"inputs": [
 			{
-				"internalType": "string",
-				"name": "location",
-				"type": "string"
+				"internalType": "int256",
+				"name": "latitude",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "longitude",
+				"type": "int256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "overtimeMinutes",
+				"type": "uint256"
 			}
 		],
 		"name": "clockOut",
@@ -67,13 +88,44 @@
 			},
 			{
 				"indexed": false,
-				"internalType": "string",
-				"name": "location",
-				"type": "string"
+				"internalType": "int256",
+				"name": "latitude",
+				"type": "int256"
+			},
+			{
+				"indexed": false,
+				"internalType": "int256",
+				"name": "longitude",
+				"type": "int256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "overtimeMinutes",
+				"type": "uint256"
 			}
 		],
 		"name": "ClockOut",
 		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "employeeRecordCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [
@@ -96,9 +148,19 @@
 				"type": "uint256"
 			},
 			{
-				"internalType": "string",
-				"name": "location",
-				"type": "string"
+				"internalType": "int256",
+				"name": "latitude",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "longitude",
+				"type": "int256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "overtimeMinutes",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -122,14 +184,43 @@
 						"type": "uint256"
 					},
 					{
-						"internalType": "string",
-						"name": "location",
-						"type": "string"
+						"internalType": "int256",
+						"name": "latitude",
+						"type": "int256"
+					},
+					{
+						"internalType": "int256",
+						"name": "longitude",
+						"type": "int256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "overtimeMinutes",
+						"type": "uint256"
 					}
 				],
 				"internalType": "struct EmployeeClock.ClockEvent[]",
-				"name": "",
+				"name": "records",
 				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "isClockedIn",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",

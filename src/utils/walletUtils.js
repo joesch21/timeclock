@@ -4,6 +4,7 @@ import CryptoJS from "crypto-js";
 const STORAGE_KEY = "encryptedWalletPrivateKey";
 const ADDRESS_KEY = "walletAddress";
 
+
 // Encrypt the private key
 const encryptKey = (privateKey, password) => {
   return CryptoJS.AES.encrypt(privateKey, password).toString();
@@ -18,6 +19,7 @@ const decryptKey = (encryptedKey, password) => {
     throw new Error("Decryption failed. Invalid password or corrupted data.");
   }
 };
+
 
 // Create a new wallet and attach a provider
 export const createWallet = (password, rpcUrl) => {

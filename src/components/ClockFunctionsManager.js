@@ -1,102 +1,61 @@
 import React, { useState } from "react";
+import LocationManager from "./LocationManager";
+import HistoryManager from "./HistoryManager";
+import { formatTimestamp } from "../utils/locationUtils";
 
-const ClockFunctionsManager = ({ contract }) => {
+const ClockFunctionsManager = ({ contract, walletDetails }) => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [currentLocation, setCurrentLocation] = useState("");
   const [distanceToWorkplace, setDistanceToWorkplace] = useState(null);
+  const [showOvertimeModal, setShowOvertimeModal] = useState(false);
+  const [overtimeHours, setOvertimeHours] = useState("0");
+  const [overtimeMinutes, setOvertimeMinutes] = useState("0");
 
-  const WORKPLACE_LAT = -33.931672;
-  const WORKPLACE_LON = 151.165399;
-  const MAX_DISTANCE_KM = 20;
-
-  // Calculate distance between two coordinates
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in kilometers
-  };
-
-  // Format timestamp into a readable string
-  const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleString("en-AU", {
-      timeZone: "Australia/Sydney",
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-    });
-  };
-
-  // Fetch current location
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const distance = calculateDistance(latitude, longitude, WORKPLACE_LAT, WORKPLACE_LON);
-
-        if (distance <= MAX_DISTANCE_KM) {
-          const location = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          setCurrentLocation(location);
-          setDistanceToWorkplace(distance.toFixed(2));
-          alert(`Location fetched: ${location}. You are within ${distance.toFixed(2)} km of the workplace.`);
-        } else {
-          setDistanceToWorkplace(distance.toFixed(2));
-          alert(`You are ${distance.toFixed(2)} km away from the workplace. Clock-in/out is not allowed.`);
-        }
-      },
-      (error) => {
-        console.error("Error fetching location:", error);
-        alert("Failed to fetch location. Please try again.");
-      }
-    );
-  };
-
-  // Clock In Function
+  // Function to handle Clock-In
   const handleClockIn = async () => {
     if (!contract) {
-      alert("Contract not initialized.");
-      return;
+        alert("Contract not initialized.");
+        return;
     }
 
     if (!currentLocation) {
-      alert("Location not set. Please fetch your location first.");
-      return;
+        alert("Location not set. Please fetch your location first.");
+        return;
     }
 
-    setLoading(true);
     try {
-      const tx = await contract.clockIn(currentLocation); // Send clock-in transaction
-      const receipt = await tx.wait();
+        const isClocked = await contract.isClockedIn(walletDetails.address);
+        if (isClocked) {
+            alert("You are already clocked in. Please clock out first.");
+            return;
+        }
 
-      // Update history
-      const newRecord = { action: "Clocked In", location: currentLocation, timestamp: formatTimestamp(Date.now()) };
-      setHistory((prevHistory) => [...prevHistory, newRecord]);
+        setLoading(true);
+        const [latitude, longitude] = currentLocation.split(",").map(coord =>
+            Math.round(parseFloat(coord) * 1e6)
+        );
+        const tx = await contract.clockIn(latitude, longitude);
+        await tx.wait();
 
-      alert("Clocked in successfully!");
+        const newRecord = {
+            action: "Clocked In",
+            location: currentLocation,
+            timestamp: formatTimestamp(Date.now()),
+        };
+        setHistory((prevHistory) => [...prevHistory, newRecord]);
+
+        alert("Clocked in successfully!");
     } catch (error) {
-      console.error("Error during Clock In:", error);
-      alert(`Clock In failed: ${error.message}`);
+        console.error("Error during Clock In:", error);
+        alert(`Clock In failed: ${error.message}`);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
-  // Clock Out Function
+
+  // Function to handle Clock-Out
   const handleClockOut = async () => {
     if (!contract) {
       alert("Contract not initialized.");
@@ -108,30 +67,65 @@ const ClockFunctionsManager = ({ contract }) => {
       return;
     }
 
-    setLoading(true);
-    try {
-      const tx = await contract.clockOut(currentLocation); // Send clock-out transaction
-      const receipt = await tx.wait();
+    setShowOvertimeModal(true); // Show the overtime modal before clocking out
+  };
 
-      // Update history
-      const newRecord = { action: "Clocked Out", location: currentLocation, timestamp: formatTimestamp(Date.now()) };
+  // Function to confirm Clock-Out
+  const confirmClockOut = async () => {
+    if (!walletDetails?.address) {
+      alert("Wallet details not available.");
+      return;
+    }
+
+    // Validate overtime inputs
+    const hours = parseInt(overtimeHours || "0", 10);
+    const minutes = parseInt(overtimeMinutes || "0", 10);
+    if (hours < 0 || minutes < 0 || minutes >= 60) {
+      alert("Invalid overtime input. Please enter valid hours and minutes.");
+      return;
+    }
+
+    const overtimeInMinutes = hours * 60 + minutes;
+
+    setShowOvertimeModal(false); // Hide modal
+    setLoading(true);
+
+    try {
+      const isClocked = await contract.isClockedIn(walletDetails.address); // Check if clocked in
+      if (!isClocked) {
+        throw new Error("Not clocked in.");
+      }
+
+      const [latitude, longitude] = currentLocation.split(",").map(coord =>
+        Math.round(parseFloat(coord) * 1e6)
+      );
+
+      const tx = await contract.clockOut(latitude, longitude, overtimeInMinutes); // Include overtime
+      await tx.wait(); // Wait for transaction to complete
+
+      const newRecord = {
+        action: "Clocked Out",
+        location: currentLocation,
+        timestamp: formatTimestamp(Date.now()),
+        overtime: `${hours}h ${minutes}m`,
+      };
       setHistory((prevHistory) => [...prevHistory, newRecord]);
 
       alert("Clocked out successfully!");
     } catch (error) {
       console.error("Error during Clock Out:", error);
-      alert(`Clock Out failed: ${error.message}`);
+      alert(`Clock Out failed: ${error.reason || error.message}`);
     } finally {
       setLoading(false);
+      setOvertimeHours("0");
+      setOvertimeMinutes("0");
     }
   };
 
   return (
     <div>
       <h2>Clock Functions</h2>
-      <button className="btn btn-info" onClick={handleGetLocation} disabled={loading}>
-        {loading ? "Fetching Location..." : "Get Location"}
-      </button>
+      <LocationManager setCurrentLocation={setCurrentLocation} setDistanceToWorkplace={setDistanceToWorkplace} />
       <p>
         Current Location: {currentLocation || "Not Set"}{" "}
         {distanceToWorkplace && `(${distanceToWorkplace} km from workplace)`}
@@ -142,16 +136,41 @@ const ClockFunctionsManager = ({ contract }) => {
       <button className="btn btn-danger" onClick={handleClockOut} disabled={loading || !currentLocation}>
         {loading ? "Clocking Out..." : "Clock Out"}
       </button>
-      {history.length > 0 && (
-        <div>
-          <h3>Clock History</h3>
-          <ul>
-            {history.map((record, index) => (
-              <li key={index}>
-                <strong>{record.action}</strong> at {record.location} on {record.timestamp}
-              </li>
-            ))}
-          </ul>
+      <HistoryManager history={history} />
+
+      {/* Overtime Modal */}
+      {showOvertimeModal && (
+        <div className="modal">
+          <div className="modal-content">
+            <h3>Did you work overtime?</h3>
+            <label>
+              Hours:
+              <input
+                type="number"
+                value={overtimeHours}
+                onChange={(e) => setOvertimeHours(e.target.value)}
+                min="0"
+                placeholder="0"
+              />
+            </label>
+            <label>
+              Minutes:
+              <input
+                type="number"
+                value={overtimeMinutes}
+                onChange={(e) => setOvertimeMinutes(e.target.value)}
+                min="0"
+                max="59"
+                placeholder="0"
+              />
+            </label>
+            <button onClick={confirmClockOut} className="btn btn-primary">
+              Confirm Clock Out
+            </button>
+            <button onClick={() => setShowOvertimeModal(false)} className="btn btn-secondary">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>
