@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { ethers } from "ethers";
 
 const ClockFunctionsManager = ({ contract }) => {
   const [loading, setLoading] = useState(false);
@@ -56,10 +55,6 @@ const ClockFunctionsManager = ({ contract }) => {
 
   // Clock In Function
   const handleClockIn = async () => {
-    if (!contract) {
-      alert("Contract not initialized. Load wallet first.");
-      return;
-    }
     if (!currentLocation) {
       alert("Location not set. Please fetch your location first.");
       return;
@@ -67,8 +62,11 @@ const ClockFunctionsManager = ({ contract }) => {
 
     setLoading(true);
     try {
-      const tx = await contract.clockIn(currentLocation);
-      await tx.wait();
+      // Log the clock-in locally
+      const timestamp = new Date().toISOString();
+      const newRecord = { action: "Clock In", location: currentLocation, timestamp };
+      setHistory((prevHistory) => [...prevHistory, newRecord]);
+
       alert("Clocked in successfully!");
     } catch (error) {
       console.error("Error during Clock In:", error);
@@ -80,10 +78,6 @@ const ClockFunctionsManager = ({ contract }) => {
 
   // Clock Out Function
   const handleClockOut = async () => {
-    if (!contract) {
-      alert("Contract not initialized. Load wallet first.");
-      return;
-    }
     if (!currentLocation) {
       alert("Location not set. Please fetch your location first.");
       return;
@@ -91,39 +85,15 @@ const ClockFunctionsManager = ({ contract }) => {
 
     setLoading(true);
     try {
-      const tx = await contract.clockOut(currentLocation);
-      await tx.wait();
+      // Log the clock-out locally
+      const timestamp = new Date().toISOString();
+      const newRecord = { action: "Clock Out", location: currentLocation, timestamp };
+      setHistory((prevHistory) => [...prevHistory, newRecord]);
+
       alert("Clocked out successfully!");
     } catch (error) {
       console.error("Error during Clock Out:", error);
       alert("Failed to clock out. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch Clock-In/Out History
-  const handleGetHistory = async () => {
-    if (!contract) {
-      alert("Contract not initialized. Load wallet first.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const records = await contract.getClockRecords();
-      setHistory(
-        records.map((record) => ({
-          timestamp: new Date(record.timestamp * 1000).toLocaleString("en-AU", {
-            timeZone: "Australia/Sydney",
-          }),
-          location: record.location,
-        }))
-      );
-      alert("History fetched successfully!");
-    } catch (error) {
-      console.error("Error fetching history:", error);
-      alert("Failed to fetch clock-in/out history. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -145,16 +115,13 @@ const ClockFunctionsManager = ({ contract }) => {
       <button className="btn btn-danger" onClick={handleClockOut} disabled={loading || !currentLocation}>
         {loading ? "Clocking Out..." : "Clock Out"}
       </button>
-      <button className="btn btn-info" onClick={handleGetHistory} disabled={loading}>
-        {loading ? "Fetching History..." : "Get History"}
-      </button>
       {history.length > 0 && (
         <div>
           <h3>Clock History</h3>
           <ul>
             {history.map((record, index) => (
               <li key={index}>
-                <strong>Timestamp:</strong> {record.timestamp} - <strong>Location:</strong> {record.location}
+                <strong>{record.action}</strong> at {record.location} on {record.timestamp}
               </li>
             ))}
           </ul>

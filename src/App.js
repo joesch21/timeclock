@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import WalletManager from "./components/WalletManager";
 import GeolocationManager from "./components/GeolocationManager";
 import ClockFunctionsManager from "./components/ClockFunctionsManager";
+import TransactionHistory from "./components/TransactionHistory";
 import { ethers } from "ethers";
 import abi from "./components/EmployeeClockABI.json";
 import "./App.css";
@@ -13,6 +14,8 @@ const contractAddress = "0x61f305b899f70aef26192fc8a81551b252bffcb8";
 
 const App = () => {
   const [contract, setContract] = useState(null);
+  const [provider, setProvider] = useState(null);
+  const [walletAddress, setWalletAddress] = useState("");
   const [location, setLocation] = useState("");
   const [proximity, setProximity] = useState(false);
 
@@ -25,11 +28,13 @@ const App = () => {
     }
 
     try {
-      // Initialize contract with signer
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const signer = wallet.connect(provider); // Connect wallet to provider
+      const newProvider = new ethers.JsonRpcProvider(rpcUrl); // Initialize provider
+      setProvider(newProvider);
+
+      const signer = wallet.connect(newProvider); // Connect wallet to provider
       const initializedContract = new ethers.Contract(contractAddress, abi, signer);
       setContract(initializedContract); // Save contract in state
+      setWalletAddress(wallet.address); // Save wallet address in state
       console.log("Contract initialized:", initializedContract);
     } catch (error) {
       console.error("Failed to initialize the contract:", error);
@@ -49,6 +54,9 @@ const App = () => {
 
       {/* Clock Functions Manager: Handles clock in/out operations */}
       <ClockFunctionsManager contract={contract} location={location} proximity={proximity} />
+
+      {/* Transaction History: Fetch and display transaction history */}
+      <TransactionHistory provider={provider} walletAddress={walletAddress} />
     </div>
   );
 };
