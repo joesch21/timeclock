@@ -16,7 +16,7 @@ const App = () => {
   const [contract, setContract] = useState(null);
   const [provider, setProvider] = useState(null);
   const [walletAddress, setWalletAddress] = useState("");
-  const [location, setLocation] = useState("");
+  const [userLocation, setUserLocation] = useState("");
   const [proximity, setProximity] = useState(false);
 
   // Initialize the contract using the provided wallet
@@ -50,13 +50,21 @@ const App = () => {
       <WalletManager setContract={initializeContract} rpcUrl={rpcUrl} />
 
       {/* Geolocation Manager: Handles user location and proximity */}
-      <GeolocationManager setLocation={setLocation} setProximity={setProximity} />
+      <GeolocationManager setLocation={setUserLocation} setProximity={setProximity} />
 
       {/* Clock Functions Manager: Handles clock in/out operations */}
-      <ClockFunctionsManager contract={contract} location={location} proximity={proximity} />
+      {contract && (
+        <ClockFunctionsManager
+          contract={contract}
+          location={userLocation}
+          proximity={proximity}
+        />
+      )}
 
       {/* Transaction History: Fetch and display transaction history */}
-      <TransactionHistory provider={provider} walletAddress={walletAddress} />
+      {provider && walletAddress && (
+        <TransactionHistory provider={provider} walletAddress={walletAddress} />
+      )}
     </div>
   );
 };

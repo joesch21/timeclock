@@ -20,30 +20,25 @@ const WalletManager = ({ setContract }) => {
     const loadWalletOnInit = async () => {
       const savedAddress = loadWalletAddressFromLocalStorage();
       if (savedAddress) {
-        console.log(`Found saved wallet address: ${savedAddress}`);
-        // Optionally, fetch balance or set up contract here
         try {
-          const wallet = loadWallet(savedAddress, rpcUrl); // Load wallet with provider
+          const wallet = loadWallet(password, rpcUrl);
           const walletBalance = await getWalletBalance(wallet);
           setWalletDetails(wallet);
           setBalance(walletBalance);
-          setContract(wallet); // Pass wallet to initialize the contract
+          setContract(wallet);
           alert("Wallet loaded successfully from local storage.");
         } catch (error) {
           console.error("Failed to load wallet on initialization:", error);
         }
       }
     };
+  
     loadWalletOnInit();
-  }, [setContract]);
+  }, []); // Remove 'rpcUrl' from dependencies
+  
 
   // Create a new wallet
   const handleCreateWallet = async () => {
-    if (!rpcUrl) {
-      alert("Error: RPC URL is missing. Please check your configuration.");
-      return;
-    }
-
     if (!password || password.length < 8) {
       alert("Password must be at least 8 characters long.");
       return;
@@ -68,11 +63,6 @@ const WalletManager = ({ setContract }) => {
 
   // Load an existing wallet
   const handleLoadWallet = async () => {
-    if (!rpcUrl) {
-      alert("Error: RPC URL is missing. Please check your configuration.");
-      return;
-    }
-
     if (!password || password.length < 8) {
       alert("Password must be at least 8 characters long.");
       return;

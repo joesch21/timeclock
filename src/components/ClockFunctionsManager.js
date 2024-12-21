@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 
-
 const ClockFunctionsManager = ({ contract }) => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
@@ -23,6 +22,19 @@ const ClockFunctionsManager = ({ contract }) => {
         Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c; // Distance in kilometers
+  };
+
+  // Format timestamp into a readable string
+  const formatTimestamp = (timestamp) => {
+    return new Date(timestamp).toLocaleString("en-AU", {
+      timeZone: "Australia/Sydney",
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+    });
   };
 
   // Fetch current location
@@ -56,6 +68,11 @@ const ClockFunctionsManager = ({ contract }) => {
 
   // Clock In Function
   const handleClockIn = async () => {
+    if (!contract) {
+      alert("Contract not initialized.");
+      return;
+    }
+
     if (!currentLocation) {
       alert("Location not set. Please fetch your location first.");
       return;
@@ -63,15 +80,17 @@ const ClockFunctionsManager = ({ contract }) => {
 
     setLoading(true);
     try {
-      // Log the clock-in locally
-      const timestamp = new Date().toISOString();
-      const newRecord = { action: "Clock In", location: currentLocation, timestamp };
+      const tx = await contract.clockIn(currentLocation); // Send clock-in transaction
+      const receipt = await tx.wait();
+
+      // Update history
+      const newRecord = { action: "Clocked In", location: currentLocation, timestamp: formatTimestamp(Date.now()) };
       setHistory((prevHistory) => [...prevHistory, newRecord]);
 
       alert("Clocked in successfully!");
     } catch (error) {
       console.error("Error during Clock In:", error);
-      alert("Failed to clock in. Please try again.");
+      alert(`Clock In failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -79,6 +98,11 @@ const ClockFunctionsManager = ({ contract }) => {
 
   // Clock Out Function
   const handleClockOut = async () => {
+    if (!contract) {
+      alert("Contract not initialized.");
+      return;
+    }
+
     if (!currentLocation) {
       alert("Location not set. Please fetch your location first.");
       return;
@@ -86,15 +110,17 @@ const ClockFunctionsManager = ({ contract }) => {
 
     setLoading(true);
     try {
-      // Log the clock-out locally
-      const timestamp = new Date().toISOString();
-      const newRecord = { action: "Clock Out", location: currentLocation, timestamp };
+      const tx = await contract.clockOut(currentLocation); // Send clock-out transaction
+      const receipt = await tx.wait();
+
+      // Update history
+      const newRecord = { action: "Clocked Out", location: currentLocation, timestamp: formatTimestamp(Date.now()) };
       setHistory((prevHistory) => [...prevHistory, newRecord]);
 
       alert("Clocked out successfully!");
     } catch (error) {
       console.error("Error during Clock Out:", error);
-      alert("Failed to clock out. Please try again.");
+      alert(`Clock Out failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
