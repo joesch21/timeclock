@@ -20,18 +20,20 @@ const App = () => {
   const initializeContract = (wallet) => {
     if (!wallet) {
       console.error("Wallet is required to initialize the contract.");
+      alert("Error: Wallet not initialized. Please load or create a wallet first.");
       return;
     }
 
     try {
       // Initialize contract with signer
       const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const signer = wallet.connect(provider);
+      const signer = wallet.connect(provider); // Connect wallet to provider
       const initializedContract = new ethers.Contract(contractAddress, abi, signer);
-      setContract(initializedContract);
+      setContract(initializedContract); // Save contract in state
       console.log("Contract initialized:", initializedContract);
     } catch (error) {
       console.error("Failed to initialize the contract:", error);
+      alert("Error: Failed to initialize the contract. Please check your connection or configuration.");
     }
   };
 

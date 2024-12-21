@@ -21,12 +21,17 @@ const decryptKey = (encryptedKey, password) => {
 };
 
 // Create a new wallet and save the encrypted private key locally
-export const createWallet = (password) => {
-  const wallet = ethers.Wallet.createRandom(); // Generate a new wallet
-  const encryptedKey = encryptKey(wallet.privateKey, password); // Encrypt private key
-  localStorage.setItem(STORAGE_KEY, encryptedKey); // Store encrypted key in localStorage
-  return wallet; // Return wallet object
+const createWallet = (password, rpcUrl) => {
+  if (!rpcUrl) {
+    throw new Error("RPC URL is required to create a wallet.");
+  }
+  const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+  const wallet = ethers.Wallet.createRandom().connect(provider);
+  // Save wallet to localStorage
+  localStorage.setItem("wallet", JSON.stringify(wallet));
+  return wallet;
 };
+
 
 // Load wallet from local storage with decryption
 export const loadWallet = (password) => {
