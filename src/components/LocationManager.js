@@ -3,7 +3,7 @@ import { calculateDistance } from "../utils/locationUtils";
 
 const WORKPLACE_LAT = -33.931672;
 const WORKPLACE_LON = 151.165399;
-const MAX_DISTANCE_KM = 20;
+const MAX_DISTANCE_KM = 1;
 
 const LocationManager = ({ setCurrentLocation, setDistanceToWorkplace }) => {
   const handleGetLocation = () => {
