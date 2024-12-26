@@ -177,16 +177,21 @@ const WalletManager = ({ setContract }) => {
       )}
 
       {showSuccessModal && (
-        <div className="modal">
-          <h3>Wallet Created Successfully</h3>
-          <p>Your wallet address: {walletDetails?.address}</p>
-          <p>
-            Save your wallet address securely. Use the same password to load
-            this wallet later.
-          </p>
-          <button onClick={() => setShowSuccessModal(false)}>Close</button>
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>Wallet Created Successfully</h3>
+            <p>Your wallet address: {walletDetails?.address}</p>
+            <p>
+              Save your wallet address securely. Use the same password to load this
+              wallet later.
+            </p>
+            <button className="close-button" onClick={() => setShowSuccessModal(false)}>
+              Close
+            </button>
+          </div>
         </div>
       )}
+
     </div>
   );
 };
