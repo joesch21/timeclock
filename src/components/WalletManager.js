@@ -15,6 +15,7 @@ const WalletManager = ({ setContract }) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Load wallet address from localStorage on component mount
   useEffect(() => {
@@ -23,13 +24,11 @@ const WalletManager = ({ setContract }) => {
       if (savedAddress) {
         try {
           setLoading(true);
-          // Decrypt wallet only if a valid password is entered later
           const wallet = loadWallet("default_password_placeholder", rpcUrl); // Dummy placeholder
           const walletBalance = await getWalletBalance(wallet);
           setWalletDetails(wallet);
           setBalance(walletBalance);
           setContract(wallet);
-          console.log("Wallet loaded successfully from local storage.");
         } catch (error) {
           console.error("Failed to load wallet on initialization:", error);
         } finally {
@@ -39,7 +38,7 @@ const WalletManager = ({ setContract }) => {
     };
 
     loadWalletOnInit();
-  }, [setContract]); // Remove password dependency from here
+  }, [setContract]);
 
   // Create a new wallet
   const handleCreateWallet = async () => {
@@ -56,7 +55,7 @@ const WalletManager = ({ setContract }) => {
       setBalance(walletBalance);
       saveWalletToLocalStorage(wallet.address); // Save wallet address to localStorage
       setContract(wallet); // Pass wallet to initialize the contract
-      alert(`Wallet created successfully: ${wallet.address}`);
+      setShowSuccessModal(true); // Show success modal
     } catch (error) {
       console.error("Wallet creation failed:", error);
       alert(`Failed to create wallet. Reason: ${error.message}`);
@@ -126,20 +125,32 @@ const WalletManager = ({ setContract }) => {
 
   return (
     <div>
-      <h2>Personal Wallet</h2>
-      <input
-        type="password"
-        placeholder="Enter password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        disabled={loading}
-      />
-      <button onClick={handleCreateWallet} disabled={loading}>
-        {loading ? "Creating Wallet..." : "Create Wallet"}
-      </button>
-      <button onClick={handleLoadWallet} disabled={loading}>
-        {loading ? "Loading Wallet..." : "Load Wallet"}
-      </button>
+      <h2>Create or Load your Personal Clock Manager - New wallets need a Password</h2>
+      <div style={{ marginBottom: "1rem" }}>
+        <p>Please enter a secure password to create or load your wallet.</p>
+        <input
+          type="password"
+          placeholder="Enter a secure password (min. 8 characters)"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+        />
+      </div>
+
+      <div>
+        <h3>Create Wallet</h3>
+        <button onClick={handleCreateWallet} disabled={loading}>
+          {loading ? "Creating Wallet..." : "Create Wallet"}
+        </button>
+      </div>
+
+      <div style={{ marginTop: "1rem" }}>
+        <h3>Load Wallet</h3>
+        <button onClick={handleLoadWallet} disabled={loading}>
+          {loading ? "Loading Wallet..." : "Load Wallet"}
+        </button>
+      </div>
+
       {walletDetails && (
         <div>
           <p>
@@ -151,7 +162,14 @@ const WalletManager = ({ setContract }) => {
           <button onClick={handleCopyWalletAddress}>
             {copied ? "Copied!" : "Copy Wallet Address"}
           </button>
-          <button onClick={handleSendEmail}>Send Wallet Address via Email</button>
+        </div>
+      )}
+
+      {showSuccessModal && (
+        <div className="modal">
+          <h3>Wallet Created Successfully</h3>
+          <p>Your wallet address: {walletDetails?.address}</p>
+          <button onClick={() => setShowSuccessModal(false)}>Close</button>
         </div>
       )}
     </div>
