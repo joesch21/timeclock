@@ -18,6 +18,7 @@ const WalletManager = ({ setContract }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedWallets, setSavedWallets] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState("");
+  const [error, setError] = useState(""); // For password validation errors
 
   useEffect(() => {
     // Load saved wallets from local storage on initialization
@@ -26,10 +27,12 @@ const WalletManager = ({ setContract }) => {
   }, []);
 
   const handleWalletAction = async (action) => {
+    // Validate password length
     if (!password || password.length < 8) {
-      alert("Password must be at least 8 characters long.");
+      setError("Password must be at least 8 characters long.");
       return;
     }
+    setError(""); // Clear error on valid input
 
     if (action === "create" && savedWallets.length > 0) {
       const confirmOverwrite = window.confirm(
@@ -109,7 +112,7 @@ const WalletManager = ({ setContract }) => {
       </p>
       <ol>
         <li>Enter a secure password to create your wallet.</li>
-        <li>Save your wallet address after creation for future use.</li>
+        <li>Save your wallet address and pass the address to your manager.</li>
         <li>
           Use the same password to load your wallet and check your balance.
         </li>
@@ -125,13 +128,14 @@ const WalletManager = ({ setContract }) => {
           onChange={(e) => setPassword(e.target.value)}
           disabled={loading}
         />
+        {error && <p style={{ color: "red" }}>{error}</p>}
       </div>
 
       <div>
         <button onClick={() => handleWalletAction("create")} disabled={loading}>
           {loading ? "Creating Wallet..." : "Create Wallet"}
         </button>
-        <button onClick={handleWalletAction("load")} disabled={loading}>
+        <button onClick={() => handleWalletAction("load")} disabled={loading}>
           {loading ? "Loading Wallet..." : "Load Wallet"}
         </button>
       </div>
