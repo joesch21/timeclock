@@ -7,7 +7,7 @@ import {
   saveWalletToLocalStorage,
 } from "../utils/walletUtils";
 
-const rpcUrl = "https://data-seed-prebsc-1-s1.binance.org:8545/"; // BSC Testnet RPC URL
+const rpcUrl = "https://data-seed-prebsc-1-s1.binance.org:8545/";
 
 const WalletManager = ({ setContract }) => {
   const [walletDetails, setWalletDetails] = useState(null);
@@ -17,14 +17,13 @@ const WalletManager = ({ setContract }) => {
   const [copied, setCopied] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Load wallet address from localStorage on component mount
   useEffect(() => {
-    const loadWalletOnInit = async () => {
+    const initializeWallet = async () => {
       const savedAddress = loadWalletAddressFromLocalStorage();
       if (savedAddress) {
         try {
           setLoading(true);
-          const wallet = loadWallet("default_password_placeholder", rpcUrl); // Dummy placeholder
+          const wallet = loadWallet("default_password_placeholder", rpcUrl);
           const walletBalance = await getWalletBalance(wallet);
           setWalletDetails(wallet);
           setBalance(walletBalance);
@@ -36,12 +35,10 @@ const WalletManager = ({ setContract }) => {
         }
       }
     };
-
-    loadWalletOnInit();
+    initializeWallet();
   }, [setContract]);
 
-  // Create a new wallet
-  const handleCreateWallet = async () => {
+  const handleWalletAction = async (action) => {
     if (!password || password.length < 8) {
       alert("Password must be at least 8 characters long.");
       return;
@@ -49,88 +46,60 @@ const WalletManager = ({ setContract }) => {
 
     setLoading(true);
     try {
-      const wallet = createWallet(password, rpcUrl); // Generate wallet with provider
-      const walletBalance = await getWalletBalance(wallet); // Fetch balance
+      const wallet =
+        action === "create"
+          ? createWallet(password, rpcUrl)
+          : loadWallet(password, rpcUrl);
+
+      const walletBalance = await getWalletBalance(wallet);
       setWalletDetails(wallet);
       setBalance(walletBalance);
-      saveWalletToLocalStorage(wallet.address); // Save wallet address to localStorage
-      setContract(wallet); // Pass wallet to initialize the contract
-      setShowSuccessModal(true); // Show success modal
+      saveWalletToLocalStorage(wallet.address);
+      setContract(wallet);
+
+      if (action === "create") setShowSuccessModal(true);
     } catch (error) {
-      console.error("Wallet creation failed:", error);
-      alert(`Failed to create wallet. Reason: ${error.message}`);
+      alert(`Failed to ${action} wallet. Reason: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load an existing wallet
-  const handleLoadWallet = async () => {
-    if (!password || password.length < 8) {
-      alert("Password must be at least 8 characters long.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const wallet = loadWallet(password, rpcUrl); // Load wallet with provider
-      const walletBalance = await getWalletBalance(wallet); // Fetch balance
-      setWalletDetails(wallet);
-      setBalance(walletBalance);
-      setContract(wallet); // Pass wallet to initialize the contract
-      alert("Wallet loaded successfully.");
-    } catch (error) {
-      console.error("Wallet loading failed:", error);
-      alert(`Failed to load wallet. Reason: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Copy wallet address to clipboard
-  const handleCopyWalletAddress = () => {
+  const handleCopyWalletAddress = async () => {
     if (!walletDetails?.address) {
       alert("No wallet address to copy.");
       return;
     }
 
-    navigator.clipboard
-      .writeText(walletDetails.address)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 3000); // Reset copied status after 3 seconds
-        alert("Wallet address copied to clipboard.");
-      })
-      .catch((error) => {
-        console.error("Failed to copy wallet address:", error);
-        alert("Failed to copy wallet address. Please try again.");
-      });
-  };
-
-  // Send wallet address via email
-  const handleSendEmail = () => {
-    if (!walletDetails?.address) {
-      alert("No wallet address to send.");
-      return;
+    try {
+      await navigator.clipboard.writeText(walletDetails.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+      alert("Wallet address copied to clipboard.");
+    } catch (error) {
+      alert("Failed to copy wallet address. Please try again.");
     }
-
-    const email = "admin@example.com"; // Replace with admin's email
-    const subject = "Wallet Address Submission";
-    const body = `Hello,\n\nHere is my wallet address: ${walletDetails.address}\n\nThank you.`;
-
-    window.location.href = `mailto:${email}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
   };
 
   return (
     <div>
-      <h2>Create or Load your Personal Clock Manager - New wallets need a Password</h2>
+      <h2>Welcome to Your Personal Clock Manager</h2>
+      <p>
+        This application allows you to create and manage a personal wallet on
+        the Binance Smart Chain Testnet. Follow the steps below:
+      </p>
+      <ol>
+        <li>Enter a secure password to create your wallet.</li>
+        <li>Save your wallet address after creation for future use.</li>
+        <li>
+          Use the same password to load your wallet and check your balance.
+        </li>
+      </ol>
       <div style={{ marginBottom: "1rem" }}>
-        <p>Please enter a secure password to create or load your wallet.</p>
+        <p><strong>Step 1:</strong> Enter a secure password to get started.</p>
         <input
           type="password"
-          placeholder="Enter a secure password (min. 8 characters)"
+          placeholder="Enter password (min. 8 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={loading}
@@ -138,15 +107,10 @@ const WalletManager = ({ setContract }) => {
       </div>
 
       <div>
-        <h3>Create Wallet</h3>
-        <button onClick={handleCreateWallet} disabled={loading}>
+        <button onClick={() => handleWalletAction("create")} disabled={loading}>
           {loading ? "Creating Wallet..." : "Create Wallet"}
         </button>
-      </div>
-
-      <div style={{ marginTop: "1rem" }}>
-        <h3>Load Wallet</h3>
-        <button onClick={handleLoadWallet} disabled={loading}>
+        <button onClick={() => handleWalletAction("load")} disabled={loading}>
           {loading ? "Loading Wallet..." : "Load Wallet"}
         </button>
       </div>
@@ -169,6 +133,10 @@ const WalletManager = ({ setContract }) => {
         <div className="modal">
           <h3>Wallet Created Successfully</h3>
           <p>Your wallet address: {walletDetails?.address}</p>
+          <p>
+            Save your wallet address securely. Use the same password to load
+            this wallet later.
+          </p>
           <button onClick={() => setShowSuccessModal(false)}>Close</button>
         </div>
       )}
