@@ -44,7 +44,7 @@ const App = () => {
 
   return (
     <div className="container mt-5">
-      <h1>Sydney ITP Clock App</h1>
+      <h1>Clock In/Out App</h1>
 
       {/* Wallet Manager: Handles wallet creation/loading */}
       <WalletManager setWalletDetails={setWalletDetails} setContract={initializeContract} />

@@ -103,10 +103,10 @@ const WalletManager = ({ setContract }) => {
 
   return (
     <div>
-      <h2>Welcome to Your Personal Wallet Manager</h2>
+      <h2>Enter Password to Load Wallet</h2>
       <div style={{ marginBottom: "1rem" }}>
         <p>
-          <strong>Step 1:</strong> Enter a secure password to get started.
+          <strong>New Users:</strong> Enter your password. Press create Wallet
         </p>
         <input
           type="password"
