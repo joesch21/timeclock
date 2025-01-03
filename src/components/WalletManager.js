@@ -18,21 +18,19 @@ const WalletManager = ({ setContract }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedWallets, setSavedWallets] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState("");
-  const [error, setError] = useState(""); // For password validation errors
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // Load saved wallets from local storage on initialization
     const wallets = loadWalletsFromLocalStorage();
     setSavedWallets(wallets || []);
   }, []);
 
   const handleWalletAction = async (action) => {
-    // Validate password length
     if (!password || password.length < 8) {
       setError("Password must be at least 8 characters long.");
       return;
     }
-    setError(""); // Clear error on valid input
+    setError("");
 
     if (action === "create" && savedWallets.length > 0) {
       const confirmOverwrite = window.confirm(
@@ -106,17 +104,6 @@ const WalletManager = ({ setContract }) => {
   return (
     <div>
       <h2>Welcome to Your Personal Wallet Manager</h2>
-      <p>
-        This application allows you to create and manage a personal wallet on
-        the Blockchain. Follow the steps below:
-      </p>
-      <ol>
-        <li>Enter a secure password to create your wallet.</li>
-        <li>Save your wallet address and pass the address to your manager.</li>
-        <li>
-          Use the same password to load your wallet and check your balance.
-        </li>
-      </ol>
       <div style={{ marginBottom: "1rem" }}>
         <p>
           <strong>Step 1:</strong> Enter a secure password to get started.
@@ -167,6 +154,26 @@ const WalletManager = ({ setContract }) => {
           <p>
             <strong>Wallet Address:</strong> {walletDetails.address}
           </p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginTop: "10px",
+            }}
+          >
+            <p>Status:</p>
+            <span
+              style={{
+                display: "inline-block",
+                width: "15px",
+                height: "15px",
+                borderRadius: "50%",
+                backgroundColor: "green",
+              }}
+            ></span>
+            <span>{walletDetails.address === selectedWallet ? "Active" : "Inactive"}</span>
+          </div>
           <p>
             <strong>Balance:</strong> {balance} BNB
           </p>
@@ -181,17 +188,12 @@ const WalletManager = ({ setContract }) => {
           <div className="modal-card">
             <h3>Wallet Created Successfully</h3>
             <p>Your wallet address: {walletDetails?.address}</p>
-            <p>
-              Save your wallet address securely. Use the same password to load this
-              wallet later.
-            </p>
             <button className="close-button" onClick={() => setShowSuccessModal(false)}>
               Close
             </button>
           </div>
         </div>
       )}
-
     </div>
   );
 };

@@ -11,49 +11,52 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
   const [showOvertimeModal, setShowOvertimeModal] = useState(false);
   const [overtimeHours, setOvertimeHours] = useState("0");
   const [overtimeMinutes, setOvertimeMinutes] = useState("0");
+  const [clockStatus, setClockStatus] = useState("needsClockIn"); // Clock status state
+  const [clockTime, setClockTime] = useState(null);
 
   // Function to handle Clock-In
   const handleClockIn = async () => {
     if (!contract) {
-        alert("Contract not initialized.");
-        return;
+      alert("Contract not initialized.");
+      return;
     }
 
     if (!currentLocation) {
-        alert("Location not set. Please fetch your location first.");
-        return;
+      alert("Location not set. Please fetch your location first.");
+      return;
     }
 
     try {
-        const isClocked = await contract.isClockedIn(walletDetails.address);
-        if (isClocked) {
-            alert("You are already clocked in. Please clock out first.");
-            return;
-        }
+      const isClocked = await contract.isClockedIn(walletDetails.address);
+      if (isClocked) {
+        alert("You are already clocked in. Please clock out first.");
+        return;
+      }
 
-        setLoading(true);
-        const [latitude, longitude] = currentLocation.split(",").map(coord =>
-            Math.round(parseFloat(coord) * 1e6)
-        );
-        const tx = await contract.clockIn(latitude, longitude);
-        await tx.wait();
+      setLoading(true);
+      const [latitude, longitude] = currentLocation.split(",").map(coord =>
+        Math.round(parseFloat(coord) * 1e6)
+      );
+      const tx = await contract.clockIn(latitude, longitude);
+      await tx.wait();
 
-        const newRecord = {
-            action: "Clocked In",
-            location: currentLocation,
-            timestamp: formatTimestamp(Date.now()),
-        };
-        setHistory((prevHistory) => [...prevHistory, newRecord]);
+      const newRecord = {
+        action: "Clocked In",
+        location: currentLocation,
+        timestamp: formatTimestamp(Date.now()),
+      };
+      setHistory((prevHistory) => [...prevHistory, newRecord]);
 
-        alert("Clocked in successfully!");
+      setClockStatus("clockedIn"); // Update clock status
+      setClockTime(new Date().toLocaleTimeString());
+      alert("Clocked in successfully!");
     } catch (error) {
-        console.error("Error during Clock In:", error);
-        alert(`Clock In failed: ${error.message}`);
+      console.error("Error during Clock In:", error);
+      alert(`Clock In failed: ${error.message}`);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
-
+  };
 
   // Function to handle Clock-Out
   const handleClockOut = async () => {
@@ -77,7 +80,6 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
       return;
     }
 
-    // Validate overtime inputs
     const hours = parseInt(overtimeHours || "0", 10);
     const minutes = parseInt(overtimeMinutes || "0", 10);
     if (hours < 0 || minutes < 0 || minutes >= 60) {
@@ -87,11 +89,11 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
 
     const overtimeInMinutes = hours * 60 + minutes;
 
-    setShowOvertimeModal(false); // Hide modal
+    setShowOvertimeModal(false);
     setLoading(true);
 
     try {
-      const isClocked = await contract.isClockedIn(walletDetails.address); // Check if clocked in
+      const isClocked = await contract.isClockedIn(walletDetails.address);
       if (!isClocked) {
         throw new Error("Not clocked in.");
       }
@@ -100,8 +102,8 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
         Math.round(parseFloat(coord) * 1e6)
       );
 
-      const tx = await contract.clockOut(latitude, longitude, overtimeInMinutes); // Include overtime
-      await tx.wait(); // Wait for transaction to complete
+      const tx = await contract.clockOut(latitude, longitude, overtimeInMinutes);
+      await tx.wait();
 
       const newRecord = {
         action: "Clocked Out",
@@ -111,6 +113,8 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
       };
       setHistory((prevHistory) => [...prevHistory, newRecord]);
 
+      setClockStatus("clockedOut"); // Update clock status
+      setClockTime(new Date().toLocaleTimeString());
       alert("Clocked out successfully!");
     } catch (error) {
       console.error("Error during Clock Out:", error);
@@ -125,20 +129,57 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
   return (
     <div>
       <h2>Clock Functions</h2>
-      <LocationManager setCurrentLocation={setCurrentLocation} setDistanceToWorkplace={setDistanceToWorkplace} />
+
+      {/* Clock Status Section */}
+      <div style={{ marginBottom: "1rem" }}>
+        <h3>Clock Status</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: "20px",
+              height: "20px",
+              borderRadius: "50%",
+              backgroundColor:
+                clockStatus === "clockedIn"
+                  ? "green"
+                  : clockStatus === "clockedOut"
+                  ? "red"
+                  : "yellow",
+            }}
+          ></span>
+          <p>
+            {clockStatus === "clockedIn" && `Clocked In at ${clockTime}`}
+            {clockStatus === "clockedOut" && `Clocked Out at ${clockTime}`}
+            {clockStatus === "needsClockIn" && "Please clock in."}
+          </p>
+        </div>
+      </div>
+
+      <LocationManager
+        setCurrentLocation={setCurrentLocation}
+        setDistanceToWorkplace={setDistanceToWorkplace}
+      />
       <p>
         Current Location: {currentLocation || "Not Set"}{" "}
         {distanceToWorkplace && `(${distanceToWorkplace} km from workplace)`}
       </p>
-      <button className="btn btn-success" onClick={handleClockIn} disabled={loading || !currentLocation}>
+      <button
+        className="btn btn-success"
+        onClick={handleClockIn}
+        disabled={loading || !currentLocation}
+      >
         {loading ? "Clocking In..." : "Clock In"}
       </button>
-      <button className="btn btn-danger" onClick={handleClockOut} disabled={loading || !currentLocation}>
+      <button
+        className="btn btn-danger"
+        onClick={handleClockOut}
+        disabled={loading || !currentLocation}
+      >
         {loading ? "Clocking Out..." : "Clock Out"}
       </button>
       <HistoryManager history={history} />
 
-      {/* Overtime Modal */}
       {showOvertimeModal && (
         <div className="modal">
           <div className="modal-content">
@@ -167,7 +208,10 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
             <button onClick={confirmClockOut} className="btn btn-primary">
               Confirm Clock Out
             </button>
-            <button onClick={() => setShowOvertimeModal(false)} className="btn btn-secondary">
+            <button
+              onClick={() => setShowOvertimeModal(false)}
+              className="btn btn-secondary"
+            >
               Cancel
             </button>
           </div>

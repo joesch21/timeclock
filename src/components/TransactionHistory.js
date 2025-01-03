@@ -9,100 +9,69 @@ const TransactionHistory = ({ walletAddress }) => {
   const apiKey = process.env.REACT_APP_BSCSCAN_API_KEY;
   const bscScanUrl = "https://api-testnet.bscscan.com/api";
   const contractAddress = "0x4ACFE507138b73393Bc97C8913d30f79892eF1f2";
-  const eventSignature = "0x0079ac4295685a586013a8b5be23d0ecfa4c7530e906cc7a19bc98e821d1d49b";
 
-  // Function to decode data
-  const decodeData = (data) => {
-    try {
-      const timestampHex = data.slice(2, 66); // First 32 bytes
-      const overtimeHex = data.slice(194, 258); // Third 32 bytes
-
-      const timestamp = parseInt(timestampHex, 16); // Convert timestamp (Hex to Dec)
-      const overtimeMinutes = parseInt(overtimeHex, 16); // Convert overtime (Hex to Dec)
-
-      console.log("Decoding raw data:", data);
-      console.log("Parsed Values:", { timestamp, overtimeMinutes });
-
-      // Validate timestamp
-      if (isNaN(timestamp) || timestamp < 0) {
-        throw new Error("Invalid timestamp value.");
-      }
-
-      // Validate overtime (reasonable range: 0 to 720 minutes)
-      if (isNaN(overtimeMinutes) || overtimeMinutes < 0 || overtimeMinutes > 12 * 60) {
-        console.warn("Invalid or unrealistic overtime detected:", overtimeMinutes);
-        return null; // Skip invalid entries
-      }
-
-      return {
-        timestamp: new Date(timestamp * 1000).toLocaleString("en-AU", {
-          timeZone: "Australia/Sydney",
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "numeric",
-          minute: "numeric",
-        }),
-        overtime: `${Math.floor(overtimeMinutes / 60)}h ${overtimeMinutes % 60}m`, // Format overtime
-        isOvertime: overtimeMinutes > 0, // Boolean for display
-      };
-    } catch (error) {
-      console.error("Failed to decode log data:", error);
-      return null;
-    }
-  };
-
-  // Fetch transaction logs
-  const fetchHistory = async () => {
-    if (!walletAddress) {
-      alert("Wallet address is missing.");
-      return;
-    }
-
-    setLoading(true);
+  const fetchBlockchainLogs = async () => {
     try {
       const response = await fetch(
-        `${bscScanUrl}?module=logs&action=getLogs&address=${contractAddress}&fromBlock=0&toBlock=latest&apikey=${apiKey}`
+        `${bscScanUrl}?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`
       );
       const data = await response.json();
 
-      console.log("Raw API Response:", data);
-
       if (data.status !== "1") {
-        console.error("Error fetching logs:", data.message);
-        alert("Failed to fetch transaction logs. Please try again.");
-        return;
+        console.error("Failed to fetch transactions:", data.message);
+        return [];
       }
 
-      const transactions = data.result
-        .filter((log) => log.topics[0] === eventSignature) // Match event signature
-        .filter((log) => log.topics[1].toLowerCase() === `0x000000000000000000000000${walletAddress.toLowerCase().slice(2)}`) // Match wallet address
-        .map((log) => {
-          const decoded = decodeData(log.data);
-          if (!decoded) return null; // Skip invalid logs
+      return data.result
+        .filter((tx) => tx.to.toLowerCase() === contractAddress.toLowerCase()) // Filter transactions to the contract
+        .map((tx) => {
+          // Extract method ID from input data
+          const methodId = tx.input.slice(0, 10);
+          let action;
+
+          if (methodId === "0x687473fb") action = "Clocked In"; // Method ID for ClockIn
+          else if (methodId === "0x6b92bb2a") action = "Clocked Out"; // Method ID for ClockOut
+          else return null; // Ignore unrelated transactions
 
           return {
-            employee: walletAddress,
-            clockInTime: decoded.timestamp,
-            overtime: decoded.overtime,
-            isOvertime: decoded.isOvertime,
+            employee: tx.from,
+            action,
+            timestamp: new Date(tx.timeStamp * 1000).toLocaleString("en-AU", {
+              timeZone: "Australia/Sydney",
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "numeric",
+              minute: "numeric",
+            }),
+            txnHash: tx.hash,
+            gasFee: `${(tx.gasUsed * tx.gasPrice) / 1e18} BNB`, // Calculate gas fee
           };
         })
         .filter(Boolean); // Remove null entries
+    } catch (error) {
+      console.error("Error fetching blockchain transactions:", error);
+      return [];
+    }
+  };
 
-      console.log("Filtered Transactions:", transactions);
-      setHistory(transactions);
+  const fetchHistory = async () => {
+    setLoading(true);
+    try {
+      const blockchainLogs = await fetchBlockchainLogs();
+
+      // Sort logs by timestamp
+      blockchainLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      setHistory(blockchainLogs);
       setShowModal(true);
     } catch (error) {
-      console.error("Error fetching logs:", error);
-      alert("Failed to fetch transaction logs. Please try again.");
+      console.error("Error fetching transaction history:", error);
     } finally {
       setLoading(false);
     }
   };
-
-  const isMobile = window.innerWidth <= 768;
 
   return (
     <div>
@@ -112,25 +81,39 @@ const TransactionHistory = ({ walletAddress }) => {
       </button>
 
       {showModal && (
-        <div className="modal" style={{ fontSize: isMobile ? "1.2rem" : "1rem" }}>
+        <div className="modal">
           <div className="modal-content">
             <span className="close" onClick={() => setShowModal(false)}>
               &times;
             </span>
             <h3>Transaction History</h3>
             {history.length > 0 ? (
-              <ul>
+              <ul style={{ fontSize: "10px" }}> {/* General smaller font size */}
                 {history.map((tx, index) => (
-                  <li key={index}>
+                  <li
+                    key={index}
+                    style={{
+                      marginBottom: "0.5rem",
+                      borderBottom: "1px solid #ddd",
+                      paddingBottom: "0.5rem",
+                    }}
+                  >
                     <p>
                       <strong>Employee:</strong> {tx.employee} <br />
-                      <strong>Clock-In Time:</strong> {tx.clockInTime} <br />
-                      <strong>Overtime:</strong>{" "}
-                      {tx.isOvertime ? (
-                        <span style={{ color: "red" }}>{tx.overtime}</span>
-                      ) : (
-                        "No"
-                      )}
+                      <strong>Action:</strong> {tx.action} <br />
+                      <strong>Time:</strong> {tx.timestamp} <br />
+                      <strong>Transaction Hash:</strong>{" "}
+                      <span style={{ fontSize: "8px" }}>
+                        <a
+                          href={`https://testnet.bscscan.com/tx/${tx.txnHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {tx.txnHash}
+                        </a>
+                      </span>
+                      <br />
+                      <strong>Gas Fee:</strong> {tx.gasFee}
                     </p>
                   </li>
                 ))}
