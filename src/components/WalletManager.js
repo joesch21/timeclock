@@ -13,6 +13,7 @@ const WalletManager = ({ setContract }) => {
   const [walletDetails, setWalletDetails] = useState(null);
   const [balance, setBalance] = useState("0");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -23,6 +24,13 @@ const WalletManager = ({ setContract }) => {
   useEffect(() => {
     const wallets = loadWalletsFromLocalStorage();
     setSavedWallets(wallets || []);
+
+    // Retrieve remembered password from localStorage
+    const rememberedPassword = localStorage.getItem("walletPassword");
+    if (rememberedPassword) {
+      setPassword(rememberedPassword);
+      setConfirmPassword(rememberedPassword);
+    }
   }, []);
 
   const handleWalletAction = async (action) => {
@@ -30,6 +38,12 @@ const WalletManager = ({ setContract }) => {
       setError("Password must be at least 8 characters long.");
       return;
     }
+
+    if (action === "create" && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setError("");
 
     if (action === "create" && savedWallets.length > 0) {
@@ -38,6 +52,9 @@ const WalletManager = ({ setContract }) => {
       );
       if (!confirmOverwrite) return;
     }
+
+    // Save password to localStorage for auto-remember
+    localStorage.setItem("walletPassword", password);
 
     setLoading(true);
     try {
@@ -106,13 +123,20 @@ const WalletManager = ({ setContract }) => {
       <h2>Enter Password to Load Wallet</h2>
       <div style={{ marginBottom: "1rem" }}>
         <p>
-          <strong>New Users:</strong> Enter your password. Press create Wallet
+          <strong>New Users:</strong> Enter your password and confirm it to create a wallet.
         </p>
         <input
           type="password"
           placeholder="Enter password (min. 8 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+        />
+        <input
+          type="password"
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={loading}
         />
         {error && <p style={{ color: "red" }}>{error}</p>}
