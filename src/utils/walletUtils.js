@@ -5,7 +5,10 @@ const STORAGE_KEY = "encryptedWallets"; // Key to store an array of encrypted pr
 const ADDRESS_KEY = "walletAddresses"; // Key to store an array of wallet addresses
 
 // Encrypt the private key
-export const encryptKey = (privateKey, password) => {
+export const encryptKey = (privateKey, password, confirmPassword) => {
+  if (password !== confirmPassword) {
+    throw new Error("Passwords do not match. Please try again.");
+  }
   return CryptoJS.AES.encrypt(privateKey, password).toString();
 };
 
@@ -13,18 +16,20 @@ export const encryptKey = (privateKey, password) => {
 export const decryptKey = (encryptedKey, password) => {
   try {
     const bytes = CryptoJS.AES.decrypt(encryptedKey, password);
-    return bytes.toString(CryptoJS.enc.Utf8);
+    const decryptedKey = bytes.toString(CryptoJS.enc.Utf8);
+    if (!decryptedKey) throw new Error("Invalid password or corrupted data.");
+    return decryptedKey;
   } catch (error) {
     throw new Error("Decryption failed. Invalid password or corrupted data.");
   }
 };
 
-// Create a new wallet and attach a provider
-export const createWallet = (password, rpcUrl) => {
+// Create a new wallet with password confirmation and attach a provider
+export const createWallet = (password, confirmPassword, rpcUrl) => {
   if (!rpcUrl) throw new Error("RPC URL is required to create a wallet.");
   
   const wallet = ethers.Wallet.createRandom();
-  const encryptedKey = encryptKey(wallet.privateKey, password);
+  const encryptedKey = encryptKey(wallet.privateKey, password, confirmPassword);
 
   console.log("Encrypted Private Key (saving to localStorage):", encryptedKey);
   console.log("Wallet Address (saving to localStorage):", wallet.address);

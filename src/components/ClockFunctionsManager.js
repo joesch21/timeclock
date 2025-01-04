@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import LocationManager from "./LocationManager";
 import HistoryManager from "./HistoryManager";
 import { formatTimestamp } from "../utils/locationUtils";
@@ -14,6 +14,21 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
   const [clockStatus, setClockStatus] = useState("needsClockIn"); // Clock status state
   const [clockTime, setClockTime] = useState(null);
 
+  // Fetch real-time clock status from the smart contract on component load
+  useEffect(() => {
+    const fetchClockStatus = async () => {
+      try {
+        if (!contract || !walletDetails?.address) return;
+        const isClockedIn = await contract.isClockedIn(walletDetails.address);
+        setClockStatus(isClockedIn ? "clockedIn" : "needsClockIn");
+      } catch (error) {
+        console.error("Error fetching clock status:", error);
+      }
+    };
+
+    fetchClockStatus();
+  }, [contract, walletDetails]);
+
   // Function to handle Clock-In
   const handleClockIn = async () => {
     if (!contract) {
@@ -27,13 +42,13 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
     }
 
     try {
+      setLoading(true);
       const isClocked = await contract.isClockedIn(walletDetails.address);
       if (isClocked) {
         alert("You are already clocked in. Please clock out first.");
         return;
       }
 
-      setLoading(true);
       const [latitude, longitude] = currentLocation.split(",").map(coord =>
         Math.round(parseFloat(coord) * 1e6)
       );
@@ -47,7 +62,7 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
       };
       setHistory((prevHistory) => [...prevHistory, newRecord]);
 
-      setClockStatus("clockedIn"); // Update clock status
+      setClockStatus("clockedIn");
       setClockTime(new Date().toLocaleTimeString());
       alert("Clocked in successfully!");
     } catch (error) {
@@ -70,7 +85,7 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
       return;
     }
 
-    setShowOvertimeModal(true); // Show the overtime modal before clocking out
+    setShowOvertimeModal(true);
   };
 
   // Function to confirm Clock-Out
@@ -88,7 +103,6 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
     }
 
     const overtimeInMinutes = hours * 60 + minutes;
-
     setShowOvertimeModal(false);
     setLoading(true);
 
@@ -113,7 +127,7 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
       };
       setHistory((prevHistory) => [...prevHistory, newRecord]);
 
-      setClockStatus("clockedOut"); // Update clock status
+      setClockStatus("clockedOut");
       setClockTime(new Date().toLocaleTimeString());
       alert("Clocked out successfully!");
     } catch (error) {
@@ -156,28 +170,16 @@ const ClockFunctionsManager = ({ contract, walletDetails }) => {
         </div>
       </div>
 
-      <LocationManager
-        setCurrentLocation={setCurrentLocation}
-        setDistanceToWorkplace={setDistanceToWorkplace}
-      />
-      <p>
-        Current Location: {currentLocation || "Not Set"}{" "}
-        {distanceToWorkplace && `(${distanceToWorkplace} km from workplace)`}
-      </p>
-      <button
-        className="btn btn-success"
-        onClick={handleClockIn}
-        disabled={loading || !currentLocation}
-      >
+      <LocationManager setCurrentLocation={setCurrentLocation} setDistanceToWorkplace={setDistanceToWorkplace} />
+      <p>Current Location: {currentLocation || "Not Set"} {distanceToWorkplace && `(${distanceToWorkplace} km)`}</p>
+      
+      <button className="btn btn-success" onClick={handleClockIn} disabled={loading || !currentLocation}>
         {loading ? "Clocking In..." : "Clock In"}
       </button>
-      <button
-        className="btn btn-danger"
-        onClick={handleClockOut}
-        disabled={loading || !currentLocation}
-      >
+      <button className="btn btn-danger" onClick={handleClockOut} disabled={loading || !currentLocation}>
         {loading ? "Clocking Out..." : "Clock Out"}
       </button>
+
       <HistoryManager history={history} />
 
       {showOvertimeModal && (
