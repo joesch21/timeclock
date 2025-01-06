@@ -4,6 +4,8 @@ import CryptoJS from "crypto-js";
 const STORAGE_KEY = "encryptedWallets"; // Key to store an array of encrypted private keys
 const ADDRESS_KEY = "walletAddresses"; // Key to store an array of wallet addresses
 
+const DEFAULT_RPC_URL = "https://data-seed-prebsc-1-s1.binance.org:8545/"; // Default RPC URL
+
 // Encrypt the private key
 export const encryptKey = (privateKey, password, confirmPassword) => {
   if (password !== confirmPassword) {
@@ -25,7 +27,7 @@ export const decryptKey = (encryptedKey, password) => {
 };
 
 // Create a new wallet with password confirmation and attach a provider
-export const createWallet = (password, confirmPassword, rpcUrl) => {
+export const createWallet = (password, confirmPassword, rpcUrl = DEFAULT_RPC_URL) => {
   if (!rpcUrl) throw new Error("RPC URL is required to create a wallet.");
   
   const wallet = ethers.Wallet.createRandom();
@@ -50,7 +52,7 @@ export const createWallet = (password, confirmPassword, rpcUrl) => {
 };
 
 // Load wallet from localStorage using password and attach a provider
-export const loadWallet = (password, rpcUrl) => {
+export const loadWallet = (password, rpcUrl = DEFAULT_RPC_URL) => {
   const encryptedKeys = loadEncryptedKeysFromLocalStorage();
   if (!encryptedKeys || encryptedKeys.length === 0) {
     throw new Error("No wallets found in localStorage.");

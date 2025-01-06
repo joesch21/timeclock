@@ -60,7 +60,7 @@ const WalletManager = ({ setContract }) => {
     try {
       const wallet =
         action === "create"
-          ? createWallet(password, rpcUrl)
+          ? createWallet(password, confirmPassword, rpcUrl)
           : loadWallet(password, rpcUrl);
 
       const walletBalance = await getWalletBalance(wallet);
